@@ -1,0 +1,63 @@
+.post-create {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.post-create-header {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.profile-image {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  resize: vertical;
+  min-height: 50px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #0077b5;
+}
+
+.post-form button {
+  align-self: flex-end;
+  padding: 8px 20px;
+  background-color: #0077b5;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.post-form button:hover:not(:disabled) {
+  background-color: #005a8f;
+}
+
+.post-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
