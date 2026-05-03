@@ -10,9 +10,9 @@
     "react-router-dom": "^6.10.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node_modules/vite/bin/vite.js ",
+    "build": "node_modules/vite/bin/vite.js  build",
+    "preview": "node_modules/vite/bin/vite.js  preview"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

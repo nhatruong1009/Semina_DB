@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcryptjs = require('bcryptjs');
 const { users, nextIds } = require('../data');
 const router = express.Router();
+const MongoDB = require('../data/mongo')
 
 router.post('/register', (req, res) => {
   const { email, password, name } = req.body;
@@ -30,6 +31,8 @@ router.post('/register', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
+  console.log(MongoDB.isReady())
+  MongoDB.sayHi()
   const { email, password } = req.body;
   const user = users.find(u => u.email === email);
   if (!user || !bcryptjs.compareSync(password, user.password)) {
