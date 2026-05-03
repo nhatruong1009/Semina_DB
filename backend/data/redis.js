@@ -31,7 +31,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
-        console.log(`${this.options.host}:${this.options.port} connected`)
+        console.log(`RedisDB \t ${this.options.host}:${this.options.port}`)
         return true;
       })
       .catch((error) => {

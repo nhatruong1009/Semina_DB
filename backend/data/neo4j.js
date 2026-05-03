@@ -29,7 +29,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
-        console.log(`${this.uri} connected`)
+        console.log(`Neo4j \t ${this.uri}`)
         return true;
       })
       .catch((error) => {

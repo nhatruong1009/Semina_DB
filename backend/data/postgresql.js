@@ -27,7 +27,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
-        console.log(`${this.config.host} connected`)
+        console.log(`PostgreSQL \t ${this.config.host}:${this.config.port}`)
         return true;
       })
       .catch((error) => {
@@ -70,6 +70,7 @@ class PostgreSQL {
 
 const pool = new ConnectionPool({
   host: process.env.PG_HOST || 'localhost',
+  port: process.env.PG_PORT || 5432,
   user: process.env.PG_USER || 'postgres',
   password: process.env.PG_PASSWORD || 'password',
   database: process.env.PG_DATABASE || 'linkedin_clone'

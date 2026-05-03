@@ -24,7 +24,7 @@ class ConnectionPool {
       .connect(this.uri, this.options)
       .then(() => {
         this.connected = true;
-        console.log(`${this.uri} connected`)
+        console.log(`MongoDB \t ${this.uri}`)
         return true;
       })
       .catch((error) => {
