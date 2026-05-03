@@ -27,6 +27,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
+        console.log(`${this.config.host} connected`)
         return true;
       })
       .catch((error) => {

@@ -29,6 +29,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
+        console.log(`${this.uri} connected`)
         return true;
       })
       .catch((error) => {
@@ -75,7 +76,8 @@ class Neo4j {
 
 const pool = new ConnectionPool(
   process.env.NEO4J_URI || 'bolt://localhost:7687',
-  neo4j.auth.basic(process.env.NEO4J_USER || 'neo4j', process.env.NEO4J_PASSWORD || 'password')
+  neo4j.auth.basic( process.env.NEO4J_USER || 'neo4j', 
+                    process.env.NEO4J_PASSWORD || 'password123')
 );
 
 pool.connect().catch((error) => {

@@ -4,6 +4,9 @@ const bcryptjs = require('bcryptjs');
 const { users, nextIds } = require('../data');
 const router = express.Router();
 const MongoDB = require('../data/mongo')
+const postgresQL = require('../data/postgresql')
+const neo4j = require('../data/neo4j')
+const redis = require('../data/redis')
 
 router.post('/register', (req, res) => {
   const { email, password, name } = req.body;

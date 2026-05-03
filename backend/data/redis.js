@@ -31,6 +31,7 @@ class ConnectionPool {
       })
       .then(() => {
         this.connected = true;
+        console.log(`${this.options.host}:${this.options.port} connected`)
         return true;
       })
       .catch((error) => {

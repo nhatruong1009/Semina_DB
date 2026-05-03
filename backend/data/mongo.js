@@ -24,6 +24,7 @@ class ConnectionPool {
       .connect(this.uri, this.options)
       .then(() => {
         this.connected = true;
+        console.log(`${this.uri} connected`)
         return true;
       })
       .catch((error) => {
