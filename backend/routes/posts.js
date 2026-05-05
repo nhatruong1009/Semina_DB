@@ -2,8 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { users, posts, nextIds } = require('../data');
 const { verifyToken } = require('../middleware/auth');
+const { redisMiddleware } = require('../middleware/user')
 
-router.post('/create', verifyToken, (req, res) => {
+router.post('/create', [
+    verifyToken, 
+    redisMiddleware,
+  ], (req, res) => {
   const { content, image } = req.body;
 
   const newPost = {
@@ -21,7 +25,9 @@ router.post('/create', verifyToken, (req, res) => {
   res.status(201).json(newPost);
 });
 
-router.get('/feed', verifyToken, (req, res) => {
+router.get('/feed', [
+    verifyToken
+  ], (req, res) => {
   const currentUser = users.find(u => u.id === req.userId);
   const feedPosts = posts
     .filter(p => currentUser.following.includes(p.userId) || p.userId === req.userId)
@@ -34,7 +40,10 @@ router.get('/feed', verifyToken, (req, res) => {
   res.json(feedPosts);
 });
 
-router.post('/:id/like', verifyToken, (req, res) => {
+router.post('/:id/like', [
+    verifyToken, 
+    redisMiddleware
+  ], (req, res) => {
   const post = posts.find(p => p.id === parseInt(req.params.id));
   if (!post) return res.status(404).json({ error: 'Post not found' });
 
@@ -45,7 +54,10 @@ router.post('/:id/like', verifyToken, (req, res) => {
   res.json(post);
 });
 
-router.post('/:id/unlike', verifyToken, (req, res) => {
+router.post('/:id/unlike', [
+    verifyToken, 
+    redisMiddleware
+  ], (req, res) => {
   const post = posts.find(p => p.id === parseInt(req.params.id));
   if (!post) return res.status(404).json({ error: 'Post not found' });
 
@@ -53,7 +65,9 @@ router.post('/:id/unlike', verifyToken, (req, res) => {
   res.json(post);
 });
 
-router.post('/:id/comment', verifyToken, (req, res) => {
+router.post('/:id/comment', [
+    verifyToken
+  ], (req, res) => {
   const { text } = req.body;
   const post = posts.find(p => p.id === parseInt(req.params.id));
   if (!post) return res.status(404).json({ error: 'Post not found' });
@@ -69,7 +83,9 @@ router.post('/:id/comment', verifyToken, (req, res) => {
   res.status(201).json(comment);
 });
 
-router.post('/:id/share', verifyToken, (req, res) => {
+router.post('/:id/share', [
+    verifyToken
+  ], (req, res) => {
   const post = posts.find(p => p.id === parseInt(req.params.id));
   if (!post) return res.status(404).json({ error: 'Post not found' });
 

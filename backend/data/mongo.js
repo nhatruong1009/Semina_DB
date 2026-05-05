@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
+const { postSchema } = require('./mongo_shema')
 require('dotenv').config();
+
+const crypto = require("crypto");
+
+if (!global.crypto) {
+  global.crypto = {
+    getRandomValues: (buffer) => {
+      const bytes = crypto.randomBytes(buffer.length);
+      buffer.set(bytes);
+      return buffer;
+    }
+  };
+}
 
 class ConnectionPool {
   constructor(uri, options = {}) {
@@ -50,7 +63,7 @@ class ConnectionPool {
 class MongoDB {
   constructor(pool) {
     this.pool = pool;
-    this.Post = mongoose.model('Post', new mongoose.Schema({ content: String }), 'posts');
+    this.post = mongoose.model("Post", postSchema);
   }
 
   isReady() {
@@ -58,11 +71,13 @@ class MongoDB {
   }
 
   getPostModel() {
-    return this.isReady() ? this.Post : false;
+    return this.isReady() ? this.post : false;
   }
 
-  sayHi() {
-    return this.isReady() ? 'Hello, MongoDB' : false;
+  get Post () {
+    const p = this.getPostModel();
+    if (!p) throw new Error("Unable to establish a connection to the database.");
+    return p;
   }
 }
 

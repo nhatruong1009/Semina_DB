@@ -2,11 +2,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcryptjs = require('bcryptjs');
 const { users, nextIds } = require('../data');
+const {getUser, GetContent, SaveContent, getUserWorks} = require('../query/example');
 const router = express.Router();
-const MongoDB = require('../data/mongo')
-const postgresQL = require('../data/postgresql')
-const neo4j = require('../data/neo4j')
-const redis = require('../data/redis')
 
 router.post('/register', (req, res) => {
   const { email, password, name } = req.body;
@@ -33,17 +30,45 @@ router.post('/register', (req, res) => {
   res.status(201).json({ token, user: { ...newUser, password: undefined } });
 });
 
-router.post('/login', (req, res) => {
-  console.log(MongoDB.isReady())
-  MongoDB.sayHi()
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = users.find(u => u.email === email);
-  if (!user || !bcryptjs.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
 
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { ...user, password: undefined } });
+  const r = await getUser(email);
+  console.log(r.rows)
+  const p = await GetContent("user124")
+  console.log(p)
+
+  const w = await getUserWorks("<UUID_USER_1>")
+  w.forEach(record => {
+		console.log(record.get('user'), "--->" , record.get('company'));
+	});
+  
+  // const client = postgresQL.getClient();
+  // if (!client) {
+  //   return res.status(500).json({ error: 'Database connection failed' });
+  // }
+
+  // client.query('SELECT * FROM "users" WHERE email = $1', [email], (err, result) => {
+  //   if (err) {
+  //     console.log(err)
+  //   }
+  //   const user = result.rows[0];
+  //   console.log(` ${user.email}, ${user.password_hash}` )
+
+  //   if (!user || password !== user.password_hash) {
+  //     return res.status(401).json({ error: 'Invalid credentials' });
+  //   }
+
+  //   const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  //   res.json({ token, user: { ...user, password: undefined } });
+  // })
+  // const user = users.find(u => u.email === email);
+  // if (!user || !bcryptjs.compareSync(password, user.password)) {
+  //   return res.status(401).json({ error: 'Invalid credentials' });
+  // }
+
+  // const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  // res.json({ token, user: { ...user, password: undefined } });
 });
 
 module.exports = router;
