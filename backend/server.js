@@ -7,6 +7,7 @@ const usersRouter = require('./routes/users');
 const postsRouter = require('./routes/posts');
 const jobsRouter = require('./routes/jobs');
 const authRouter = require('./routes/auth');
+const { startDataCollectors } = require('./datadriven/data_collector');
 const db_conn = require('./init_db')
 
 const app = express();
@@ -32,6 +33,9 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 9000;
+
+startDataCollectors(); // start kafka data driven
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
