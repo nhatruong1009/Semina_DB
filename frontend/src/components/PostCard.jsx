@@ -10,7 +10,7 @@ const PostCard = ({ post, onUpdate }) => {
 
   const handleLike = async () => {
     try {
-      if (post.likes.includes(user.id)) {
+      if (post.likes.includes(user?.id)) {
         await postAPI.unlikePost(post.id);
       } else {
         await postAPI.likePost(post.id);
