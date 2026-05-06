@@ -1,0 +1,98 @@
+const neo4j = require('neo4j-driver');
+require('dotenv').config();
+
+class ConnectionPool {
+	constructor(uri, auth, options = {}) {
+		this.uri = uri;
+		this.auth = auth;
+		this.options = options;
+		this.driver = null;
+		this.connected = false;
+		this.connecting = false;
+		this.connectPromise = null;
+	}
+
+	async connect() {
+		if (this.connected) {
+			return true;
+		}
+
+		if (this.connecting) {
+			return this.connectPromise;
+		}
+
+		this.connecting = true;
+		this.connectPromise = Promise.resolve()
+			.then(() => {
+				this.driver = neo4j.driver(this.uri, this.auth, this.options);
+				return this.driver.verifyConnectivity();
+			})
+			.then(() => {
+				this.connected = true;
+				console.log(`Neo4j \t ${this.uri}`)
+				return true;
+			})
+			.catch((error) => {
+				this.connected = false;
+				throw error;
+			})
+			.finally(() => {
+				this.connecting = false;
+			});
+
+		return this.connectPromise;
+	}
+
+	isConnected() {
+		return this.connected;
+	}
+
+	getDriver() {
+		return this.connected ? this.driver : false;
+	}
+
+	session() {
+		return this.connected ? this.driver.session() : false;
+	}
+}
+
+class Neo4j {
+	constructor(pool) {
+		this.pool = pool;
+	}
+
+	isReady() {
+		return this.pool.isConnected();
+	}
+
+	getSession() {
+		return this.isReady() ? this.pool.session() : false;
+	}
+
+	async Query(query) {
+		const session = this.getSession();
+		if (!session) throw new Error("Unable to establish a connection to the database.");
+			try {
+			const result = await session.run(query);
+			return result.records;	 // return the records directly
+		} catch (err) {
+			console.error("Error running query:", err);
+			return [];
+		} finally {
+			await session.close();	 // close the session once, always
+		}
+	}
+}
+
+const pool = new ConnectionPool(
+	process.env.NEO4J_URI || 'bolt://localhost:7687',
+	neo4j.auth.basic( process.env.NEO4J_USER || 'neo4j', 
+										process.env.NEO4J_PASSWORD || 'password123')
+);
+
+pool.connect().catch((error) => {
+	console.error('Neo4j connection failed:', error);
+});
+
+const neo4jInstance = new Neo4j(pool);
+module.exports = neo4jInstance;
