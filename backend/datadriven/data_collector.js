@@ -1,44 +1,30 @@
-const { produce, consume } = require('../event/kafka');
+const { produce, consume } = require('./kafka')
+
+const USER_CREATED = 'user.created';
 
 async function publishEvent(topic, payload) {
-  // TODO: validate event payload and enqueue it to Kafka.
+  // TODO: validate event payload and enrich with metadata before sending.
+  return produce(topic, payload);
 }
 
-async function collectUserDomainEvent(userEvent) {
-  // TODO: route authentication/profile events into Kafka for the PostgreSQL pipeline.
+
+// implement
+async function publishUserCreated(payload) {
+  return publishEvent(USER_CREATED, payload);
 }
 
-async function collectPostDomainEvent(postEvent) {
-  // TODO: route user post events into Kafka for the MongoDB pipeline.
+async function consumeUserCreated(payload) {
+  console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`)
+  // a new user created, add node to neo4j
 }
 
-async function collectInteractionDomainEvent(interactionEvent) {
-  // TODO: route user interactions into Kafka for the Neo4j pipeline.
-}
-
+// setup
 async function startDataCollectors() {
-  // TODO: initialize Kafka consumers and attach topic handlers.
-}
-
-async function handlePostgresEvent(message) {
-  // TODO: consume events and persist them into PostgreSQL.
-}
-
-async function handleMongoEvent(message) {
-  // TODO: consume events and persist them into MongoDB.
-}
-
-async function handleNeo4jEvent(message) {
-  // TODO: consume events and persist them into Neo4j.
+  await consume(USER_CREATED, consumeUserCreated);
 }
 
 module.exports = {
   publishEvent,
-  collectUserDomainEvent,
-  collectPostDomainEvent,
-  collectInteractionDomainEvent,
   startDataCollectors,
-  handlePostgresEvent,
-  handleMongoEvent,
-  handleNeo4jEvent,
+  publishUserCreated,
 };
