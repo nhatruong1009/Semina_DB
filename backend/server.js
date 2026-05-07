@@ -7,6 +7,7 @@ const usersRouter = require('./routes/users');
 const postsRouter = require('./routes/posts');
 const jobsRouter = require('./routes/jobs');
 const authRouter = require('./routes/auth');
+const db_conn = require('./init_db')
 
 const app = express();
 

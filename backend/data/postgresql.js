@@ -63,8 +63,15 @@ class PostgreSQL {
     return this.isReady() ? this.pool.getClient() : false;
   }
 
-  sayHi() {
-    return this.isReady() ? 'Hello, PostgreSQL' : false;
+  // this is async function for query
+  // we should wrap it into try catch in the most outer function
+  Query(query, args = []) {
+    const client = this.getClient();
+    if (!client) throw new Error("Unable to establish a connection to the database.");
+
+    return client.query(query, args)
+      .then(result => result)
+      .catch(err => { throw new Error(err.message); });
   }
 }
 

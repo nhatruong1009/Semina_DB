@@ -13,7 +13,9 @@ router.get('/all', (req, res) => {
   res.json(users.map(u => ({ ...u, password: undefined })));
 });
 
-router.post('/follow/:id', verifyToken, (req, res) => {
+router.post('/follow/:id',[
+    verifyToken
+  ], (req, res) => {
   const targetUserId = parseInt(req.params.id);
   const currentUser = users.find(u => u.id === req.userId);
   const targetUser = users.find(u => u.id === targetUserId);
@@ -29,7 +31,9 @@ router.post('/follow/:id', verifyToken, (req, res) => {
   res.json({ message: 'Following user', currentUser: { ...currentUser, password: undefined } });
 });
 
-router.post('/unfollow/:id', verifyToken, (req, res) => {
+router.post('/unfollow/:id',[
+    verifyToken
+  ], (req, res) => {
   const targetUserId = parseInt(req.params.id);
   const currentUser = users.find(u => u.id === req.userId);
   const targetUser = users.find(u => u.id === targetUserId);
