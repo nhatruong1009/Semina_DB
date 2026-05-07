@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { createUser } = require('../query/user');
+const User = require('../query/user');
 const { publishUserCreated } = require('../datadriven/data_collector');
 
 router.post('/register', async (req, res) => {
@@ -12,8 +12,8 @@ router.post('/register', async (req, res) => {
   // - Return a JWT token and the created user payload (without password).
   try {
     const { email, password, name } = req.body;
-    const records = await createUser(email, bcryptjs.hashSync(password, 10), name, "");
-    if (!records || records.length === 0) {
+    const records = await User.createUser(email, bcryptjs.hashSync(password, 10), name, "");
+    if (!records || records.rowCount === 0) {
       return res.status(500).json({ success: false, error: "User creation failed" });
     }
 
@@ -43,12 +43,33 @@ router.post('/register', async (req, res) => {
 });
 
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   // TODO: Authenticate the user using stored credentials.
   // - Lookup user by email.
   // - Compare password hash.
   // - Return a JWT token and authenticated user payload (without password).
-  res.status(501).json({ message: 'Login should be handled by the data layer and return token/user.' });
+  try{
+    const { email, password } = req.body;
+    const records = await User.getUser(email);
+    if (!records || records.rowCount === 0) {
+      return res.status(401).json({ error: 'User not exists' });
+    }
+    const user = records.rows[0];
+
+    if ( !bcryptjs.compareSync(password, user.password_hash)){
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign(
+      { id: user.user_id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user: { ...user, password: undefined } });
+
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

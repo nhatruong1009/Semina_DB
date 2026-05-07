@@ -22,6 +22,13 @@ const createUser = (email, password_hash, full_name, headline) => {
   `, [email, password_hash, full_name, headline]);
 };
 
+const getUser = (email) => {
+  return psql.Query(`
+    SELECT * FROM "users" WHERE email = $1 LIMIT 1;
+  `, [email]);
+}
+
 module.exports = {
-    createUser
+    createUser,
+    getUser,
 }
