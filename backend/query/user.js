@@ -1,4 +1,5 @@
 const psql = require('../init_db').psql
+const redis = require('../init_db').redis;
 
 const createUser = (email, password_hash, full_name, headline) => {
   return psql.Query(`
@@ -38,8 +39,36 @@ const getUserProfileById = (userId) => {
   `, [userId]);
 }
 
+// for jwt token
+async function storeRefreshToken(userId, token) {
+  const client = redis.getClient();
+  if (!client) throw new Error('Redis not connected');
+
+  const ttlSeconds = 7 * 24 * 60 * 60; // 7 days
+  await client.set(`session:refresh:${token}`, userId, 'EX', ttlSeconds);
+  await client.sadd(`session:user:${userId}`, token); // track all tokens for this user
+}
+
+async function findByRefreshToken(token) {
+  const client = redis.getClient();
+  if (!client) throw new Error('Redis not connected');
+
+  const userId = await client.get(`session:refresh:${token}`);
+  return userId; // null if not found/expired
+}
+
+async function deleteRefreshToken(token) {
+  const client = redis.getClient();
+  if (!client) throw new Error('Redis not connected');
+
+  await client.del(`session:refresh:${token}`);
+}
+
 module.exports = {
     createUser,
     getUser,
-    getUserProfileById
+    getUserProfileById,
+    storeRefreshToken,
+    findByRefreshToken,
+    deleteRefreshToken,
 }

@@ -1,4 +1,5 @@
 const express = require('express');
+const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -31,13 +32,15 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { id: profile.user_id, email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '10s' }
     );
-    const userPayload = { ...profile, id: profile.user_id, password: undefined };
-    return res.status(201).json({ token, user: userPayload });
+    const userPayload = { ...profile, id: profile.user_id, created_at: undefined, password_hash: undefined };
+    const refreshToken = uuidv4(); // token to refesh jwt
+    await User.storeRefreshToken(profile.user_id, refreshToken);
+    return res.status(201).json({ token, refreshToken, user: userPayload });
   } catch (err) {
-    if (err.code === '23505' && err.detail && err.detail.includes('(email)')) {
-      return res.status(409).json({ success: false, message: 'Email already exists' });
+    if (err.message.includes('unique constraint "users_email_key"')) {
+      return res.status(409).json({ success: false, error: 'Email already exists' });
     }
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -64,14 +67,63 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: userId, email: user.email }, 
       process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
+      { expiresIn: '10s' }
     );
-    const userPayload = { ...user, id: userId, password: undefined };
-    res.json({ token, user: userPayload });
+    const refreshToken = uuidv4(); // token to refesh jwt
+    await User.storeRefreshToken(userId, refreshToken);
+    const userPayload = { ...user, id: userId, created_at: undefined, password_hash: undefined };
+    res.json({ token, refreshToken, user: userPayload });
 
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  // refesh jwt
+  const {user_id, refreshToken } = req.body;
+  console.log(`refreshToken ${user_id}`);
+  const userId = await User.findByRefreshToken(refreshToken);
+  if (!userId || userId !== user_id) return res.status(404).json({ error: 'Refresh token not found' });
+
+  // delete the refesh token
+  await User.deleteRefreshToken(refreshToken);
+
+  const newAccessToken = jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET,
+    { expiresIn: '10s' }
+  );
+
+  // Issue new refresh token
+  const newRefreshToken = uuidv4();
+  await User.storeRefreshToken(userId, newRefreshToken);
+  res.json({ token: newAccessToken, refreshToken: newRefreshToken });
+});
+
+router.post('/logout', async (req, res) => {
+  try {
+    const { user_id, refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'No refresh token provided' });
+    }
+
+    // Verify the refresh token belongs to the user
+    const storedUserId = await User.findByRefreshToken(refreshToken);
+    if (!storedUserId || storedUserId !== user_id) {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    // Delete the refresh token from Redis (invalidate session)
+    await User.deleteRefreshToken(refreshToken);
+    // Optionally: if you track multiple tokens per user, clear them all
+    // await User.deleteTokensByUser(user_id);
+
+    return res.status(200).json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error during logout' });
   }
 });
 

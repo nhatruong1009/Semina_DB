@@ -14,7 +14,9 @@ API.interceptors.request.use((req) => {
 
 export const authAPI = {
   register: (email, password, name) => API.post('/auth/register', { email, password, name }),
-  login: (email, password) => API.post('/auth/login', { email, password })
+  login: (email, password) => API.post('/auth/login', { email, password }),
+  refresh: (user_id, refreshToken) => API.post('/auth/refresh', {user_id, refreshToken }),
+  logout: (user_id, refreshToken) => API.post('/auth/logout', {user_id, refreshToken }),
 };
 
 export const userAPI = {
@@ -49,3 +51,68 @@ export const networkAPI = {
   connect: (userId1, userId2) => API.post('/users/connect', { userId1, userId2 }),
   follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
 };
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(newToken) {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+}
+
+function addSubscriber(callback) {
+  refreshSubscribers.push(callback);
+}
+
+API.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        // Already refreshing → queue this request
+        return new Promise((resolve) => {
+          addSubscriber((newToken) => {
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            resolve(API(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        const savedUser = localStorage.getItem('user');
+        if (!refreshToken || !savedUser) {
+          localStorage.clear();
+          return Promise.reject(error);
+        }
+
+        const parsedUser = JSON.parse(savedUser);
+        const res = await authAPI.refresh(parsedUser.id, refreshToken);
+        const newAccessToken = res.data.token;
+
+        localStorage.setItem('token', newAccessToken);
+        if (res.data.refreshToken) {
+          localStorage.setItem('refreshToken', res.data.refreshToken);
+        }
+
+        isRefreshing = false;
+        onRefreshed(newAccessToken);
+
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        return API(originalRequest);
+      } catch (refreshError) {
+        isRefreshing = false;
+        localStorage.clear();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);

@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Neo4j = require('../query/neo4j');
+const { verifyToken } = require('../middleware/auth');
 
-router.get('/suggestions/:userId', async (req, res) => {
+router.get('/suggestions/:userId', [verifyToken], async (req, res) => {
   try {
     const { limit, exclude } = req.query;
     const records = await Neo4j.getSuggestions(req.params.userId, {
@@ -15,7 +16,7 @@ router.get('/suggestions/:userId', async (req, res) => {
   }
 });
 
-router.get('/mutual/:userId1/:userId2', async (req, res) => {
+router.get('/mutual/:userId1/:userId2', [verifyToken], async (req, res) => {
   try {
     const records = await Neo4j.getMutualConnections(req.params.userId1, req.params.userId2);
     res.json(records.map(r => r.toObject()));
@@ -24,7 +25,7 @@ router.get('/mutual/:userId1/:userId2', async (req, res) => {
   }
 });
 
-router.get('/job-recommendations/:userId', async (req, res) => {
+router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   try {
     const records = await Neo4j.getJobRecommendations(req.params.userId);
     res.json(records.map(r => r.toObject()));
@@ -33,7 +34,7 @@ router.get('/job-recommendations/:userId', async (req, res) => {
   }
 });
 
-router.get('/same-school/:userId', async (req, res) => {
+router.get('/same-school/:userId',  [verifyToken], async (req, res) => {
   try {
     const { limit, exclude } = req.query;
     const records = await Neo4j.getSameSchool(req.params.userId, {
@@ -46,7 +47,7 @@ router.get('/same-school/:userId', async (req, res) => {
   }
 });
 
-router.get('/same-company/:userId', async (req, res) => {
+router.get('/same-company/:userId', [verifyToken], async (req, res) => {
   try {
     const { limit, exclude } = req.query;
     const records = await Neo4j.getSameCompany(req.params.userId, {
@@ -59,7 +60,7 @@ router.get('/same-company/:userId', async (req, res) => {
   }
 });
 
-router.post('/connect', async (req, res) => {
+router.post('/connect',  [verifyToken], async (req, res) => {
   try {
     const { userId1, userId2 } = req.body;
     await Neo4j.createConnect(userId1, userId2);
@@ -69,7 +70,7 @@ router.post('/connect', async (req, res) => {
   }
 });
 
-router.post('/follow', async (req, res) => {
+router.post('/follow', [verifyToken], async (req, res) => {
   try {
     const { followerId, followeeId } = req.body;
     await Neo4j.createFollow(followerId, followeeId);
