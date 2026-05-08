@@ -34,8 +34,18 @@ export const postAPI = {
 };
 
 export const jobAPI = {
-  createJob: (title, company, location, description, salary) => 
+  createJob: (title, company, location, description, salary) =>
     API.post('/jobs/create', { title, company, location, description, salary }),
   getJobs: () => API.get('/jobs'),
   applyJob: (id) => API.post(`/jobs/${id}/apply`)
+};
+
+export const networkAPI = {
+  getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
+  getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
+  getJobRecommendations: (userId) => API.get(`/users/job-recommendations/${userId}`),
+  getSameSchool: (userId, params) => API.get(`/users/same-school/${userId}`, { params }),
+  getSameCompany: (userId, params) => API.get(`/users/same-company/${userId}`, { params }),
+  connect: (userId1, userId2) => API.post('/users/connect', { userId1, userId2 }),
+  follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
 };

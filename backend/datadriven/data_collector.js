@@ -1,4 +1,5 @@
-const { produce, consume } = require('./kafka')
+const { produce, consume } = require('./kafka');
+const Neo4j = require('../query/neo4j');
 
 const USER_CREATED = 'user.created';
 
@@ -14,8 +15,8 @@ async function publishUserCreated(payload) {
 }
 
 async function consumeUserCreated(payload) {
-  console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`)
-  // a new user created, add node to neo4j
+  console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`);
+  await Neo4j.createUser(payload.user_id, payload.full_name, payload.headline || '');
 }
 
 // setup

@@ -1,33 +1,82 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
+const Neo4j = require('../query/neo4j');
 
-router.get('/profile/:id', (req, res) => {
-  // TODO: Fetch user profile from the database by ID.
-  // - Return user details without the password.
-  res.status(501).json({ message: 'Profile retrieval should be handled by the data layer and return the user profile.' });
+router.get('/suggestions/:userId', async (req, res) => {
+  try {
+    const { limit, exclude } = req.query;
+    const records = await Neo4j.getSuggestions(req.params.userId, {
+      limit: limit ? parseInt(limit) : undefined,
+      exclude: exclude ? exclude.split(',') : undefined,
+    });
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.get('/all', (req, res) => {
-  // TODO: Fetch all users from the database.
-  // - Return user list without passwords.
-  res.status(501).json({ message: 'User list retrieval should be handled by the data layer and return all users.' });
+router.get('/mutual/:userId1/:userId2', async (req, res) => {
+  try {
+    const records = await Neo4j.getMutualConnections(req.params.userId1, req.params.userId2);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post('/follow/:id', [verifyToken], (req, res) => {
-  // TODO: Add target user to current user's following list.
-  // - Validate target user exists.
-  // - Persist follower/following relationships.
-  // - Return confirmation and updated current user.
-  res.status(501).json({ message: 'Follow action should be handled by the data layer and return the updated current user.' });
+router.get('/job-recommendations/:userId', async (req, res) => {
+  try {
+    const records = await Neo4j.getJobRecommendations(req.params.userId);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post('/unfollow/:id', [verifyToken], (req, res) => {
-  // TODO: Remove target user from current user's following list.
-  // - Validate target user exists.
-  // - Persist follower/following relationships.
-  // - Return confirmation and updated current user.
-  res.status(501).json({ message: 'Unfollow action should be handled by the data layer and return the updated current user.' });
+router.get('/same-school/:userId', async (req, res) => {
+  try {
+    const { limit, exclude } = req.query;
+    const records = await Neo4j.getSameSchool(req.params.userId, {
+      limit: limit ? parseInt(limit) : undefined,
+      exclude: exclude ? exclude.split(',') : undefined,
+    });
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/same-company/:userId', async (req, res) => {
+  try {
+    const { limit, exclude } = req.query;
+    const records = await Neo4j.getSameCompany(req.params.userId, {
+      limit: limit ? parseInt(limit) : undefined,
+      exclude: exclude ? exclude.split(',') : undefined,
+    });
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/connect', async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.body;
+    await Neo4j.createConnect(userId1, userId2);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/follow', async (req, res) => {
+  try {
+    const { followerId, followeeId } = req.body;
+    await Neo4j.createFollow(followerId, followeeId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
