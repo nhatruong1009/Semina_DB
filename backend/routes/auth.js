@@ -33,7 +33,8 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    return res.status(201).json({ token, user: { ...profile, password: undefined } });
+    const userPayload = { ...profile, id: profile.user_id, password: undefined };
+    return res.status(201).json({ token, user: userPayload });
   } catch (err) {
     if (err.code === '23505' && err.detail && err.detail.includes('(email)')) {
       return res.status(409).json({ success: false, message: 'Email already exists' });
@@ -59,12 +60,14 @@ router.post('/login', async (req, res) => {
     if ( !bcryptjs.compareSync(password, user.password_hash)){
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    const userId = user.id || user.user_id;
     const token = jwt.sign(
-      { id: user.user_id, email: user.email }, 
+      { id: userId, email: user.email }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
-    res.json({ token, user: { ...user, password: undefined } });
+    const userPayload = { ...user, id: userId, password: undefined };
+    res.json({ token, user: userPayload });
 
   } catch (err) {
     console.log(err)
