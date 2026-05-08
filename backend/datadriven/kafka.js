@@ -1,5 +1,5 @@
 // kafka.js
-const { Kafka } = require('kafkajs');
+const { Kafka, Partitioners ,logLevel  } = require('kafkajs');
 require('dotenv').config();
 
 const kafka = new Kafka({
@@ -7,6 +7,7 @@ const kafka = new Kafka({
     brokers: [
         `${process.env.KAFKA_HOST ?? "127.0.0.1"}:${process.env.KAFKA_PORT ?? 9092}`
     ],
+    logLevel: logLevel.ERROR,
 });
 
 // Connection pool: keep one producer and one consumer instance
@@ -18,7 +19,9 @@ let consumer;
  */
 async function getProducer() {
     if (!producer) {
-        producer = kafka.producer();
+        producer = kafka.producer({
+            createPartitioner: Partitioners.LegacyPartitioner
+        });
         await producer.connect();
     }
     return producer;
@@ -42,11 +45,25 @@ async function getConsumer(groupId = 'default-group') {
  * @param {object} message
  */
 async function produce(topic, message) {
-    const p = await getProducer();
-    await p.send({
-        topic,
-        messages: [{ key: message.key || null, value: JSON.stringify(message) }],
-    });
+  const p = await getProducer();
+
+  let value;
+  let isObject = false;
+
+  if (typeof message === 'object' && message !== null) {
+    value = JSON.stringify(message);
+    isObject = true;
+  } else {
+    value = String(message);
+  }
+
+  return await p.send({
+    topic,
+    messages: [{
+      value,
+      headers: { isObject: isObject ? 'true' : 'false' }
+    }],
+  });
 }
 
 /**
@@ -55,19 +72,27 @@ async function produce(topic, message) {
  * @param {function} handler - callback for each message
  */
 async function consume(topic, handler) {
-    const c = await getConsumer();
-    await c.subscribe({ topic, fromBeginning: true });
+  const c = await getConsumer();
+  await c.subscribe({ topic, fromBeginning: true });
 
-    await c.run({
-        eachMessage: async ({ topic, partition, message }) => {
-            handler({
-                key: message.key?.toString(),
-                value: message.value.toString(),
-                headers: message.headers,
-            });
-        },
-    });
+  await c.run({
+    eachMessage: async ({ topic, partition, message }) => {
+      let payload = message.value.toString();
+
+      // check header flag
+      if (message.headers?.isObject?.toString() === 'true') {
+        try {
+          payload = JSON.parse(payload);
+        } catch (err) {
+          console.error("Failed to parse JSON payload:", payload, err);
+        }
+      }
+
+      handler(payload);
+    },
+  });
 }
+
 
 module.exports = {
     produce,

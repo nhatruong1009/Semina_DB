@@ -1,96 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const { users, posts, nextIds } = require('../data');
 const { verifyToken } = require('../middleware/auth');
-const { redisMiddleware } = require('../middleware/user')
+const { redisMiddleware } = require('../middleware/user');
 
-router.post('/create', [
-    verifyToken, 
-    redisMiddleware,
-  ], (req, res) => {
-  const { content, image } = req.body;
-
-  const newPost = {
-    id: nextIds.posts++,
-    userId: req.userId,
-    content,
-    image,
-    likes: [],
-    comments: [],
-    shares: 0,
-    createdAt: new Date()
-  };
-
-  posts.push(newPost);
-  res.status(201).json(newPost);
+router.post('/create', [verifyToken, redisMiddleware], (req, res) => {
+  // TODO: Persist a new post in the database.
+  // - Use req.userId as the author.
+  // - Store content, image, likes, comments, shares, createdAt.
+  // - Return the created post record.
+  res.status(501).json({ message: 'Post creation should be handled by the data layer and return the new post.' });
 });
 
-router.get('/feed', [
-    verifyToken
-  ], (req, res) => {
-  const currentUser = users.find(u => u.id === req.userId);
-  const feedPosts = posts
-    .filter(p => currentUser.following.includes(p.userId) || p.userId === req.userId)
-    .map(p => ({
-      ...p,
-      author: users.find(u => u.id === p.userId)
-    }))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  res.json(feedPosts);
+router.get('/feed', [verifyToken], (req, res) => {
+  // TODO: Retrieve feed posts for the authenticated user.
+  // - Include posts by followed users and the current user.
+  // - Return each post with author metadata.
+  res.status(501).json({ message: 'Feed retrieval should be handled by the data layer and return feed posts with author metadata.' });
 });
 
-router.post('/:id/like', [
-    verifyToken, 
-    redisMiddleware
-  ], (req, res) => {
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-
-  if (!post.likes.includes(req.userId)) {
-    post.likes.push(req.userId);
-  }
-
-  res.json(post);
+router.post('/:id/like', [verifyToken, redisMiddleware], (req, res) => {
+  // TODO: Add a like for the current user on the specified post.
+  // - Validate the post exists.
+  // - Persist like state in the database.
+  // - Return the updated post.
+  res.status(501).json({ message: 'Post like should be handled by the data layer and return the updated post.' });
 });
 
-router.post('/:id/unlike', [
-    verifyToken, 
-    redisMiddleware
-  ], (req, res) => {
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-
-  post.likes = post.likes.filter(id => id !== req.userId);
-  res.json(post);
+router.post('/:id/unlike', [verifyToken, redisMiddleware], (req, res) => {
+  // TODO: Remove the current user like from the specified post.
+  // - Validate the post exists.
+  // - Persist unlike state in the database.
+  // - Return the updated post.
+  res.status(501).json({ message: 'Post unlike should be handled by the data layer and return the updated post.' });
 });
 
-router.post('/:id/comment', [
-    verifyToken
-  ], (req, res) => {
-  const { text } = req.body;
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-
-  const comment = {
-    id: nextIds.comments++,
-    userId: req.userId,
-    text,
-    createdAt: new Date()
-  };
-
-  post.comments.push(comment);
-  res.status(201).json(comment);
+router.post('/:id/comment', [verifyToken], (req, res) => {
+  // TODO: Add a comment to the specified post.
+  // - Validate the post exists.
+  // - Persist the comment with userId and createdAt.
+  // - Return the created comment.
+  res.status(501).json({ message: 'Post comment should be handled by the data layer and return the new comment.' });
 });
 
-router.post('/:id/share', [
-    verifyToken
-  ], (req, res) => {
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-
-  post.shares++;
-  res.json(post);
+router.post('/:id/share', [verifyToken], (req, res) => {
+  // TODO: Increment share count for the specified post.
+  // - Validate the post exists.
+  // - Persist the updated share count.
+  // - Return the updated post.
+  res.status(501).json({ message: 'Post share should be handled by the data layer and return the updated post.' });
 });
 
 module.exports = router;

@@ -1,49 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const { users } = require('../data');
 const { verifyToken } = require('../middleware/auth');
 
 router.get('/profile/:id', (req, res) => {
-  const user = users.find(u => u.id === parseInt(req.params.id));
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ ...user, password: undefined });
+  // TODO: Fetch user profile from the database by ID.
+  // - Return user details without the password.
+  res.status(501).json({ message: 'Profile retrieval should be handled by the data layer and return the user profile.' });
 });
 
 router.get('/all', (req, res) => {
-  res.json(users.map(u => ({ ...u, password: undefined })));
+  // TODO: Fetch all users from the database.
+  // - Return user list without passwords.
+  res.status(501).json({ message: 'User list retrieval should be handled by the data layer and return all users.' });
 });
 
-router.post('/follow/:id',[
-    verifyToken
-  ], (req, res) => {
-  const targetUserId = parseInt(req.params.id);
-  const currentUser = users.find(u => u.id === req.userId);
-  const targetUser = users.find(u => u.id === targetUserId);
-
-  if (!targetUser) return res.status(404).json({ error: 'User not found' });
-  if (!currentUser.following.includes(targetUserId)) {
-    currentUser.following.push(targetUserId);
-  }
-  if (!targetUser.followers.includes(req.userId)) {
-    targetUser.followers.push(req.userId);
-  }
-
-  res.json({ message: 'Following user', currentUser: { ...currentUser, password: undefined } });
+router.post('/follow/:id', [verifyToken], (req, res) => {
+  // TODO: Add target user to current user's following list.
+  // - Validate target user exists.
+  // - Persist follower/following relationships.
+  // - Return confirmation and updated current user.
+  res.status(501).json({ message: 'Follow action should be handled by the data layer and return the updated current user.' });
 });
 
-router.post('/unfollow/:id',[
-    verifyToken
-  ], (req, res) => {
-  const targetUserId = parseInt(req.params.id);
-  const currentUser = users.find(u => u.id === req.userId);
-  const targetUser = users.find(u => u.id === targetUserId);
-
-  if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-  currentUser.following = currentUser.following.filter(id => id !== targetUserId);
-  targetUser.followers = targetUser.followers.filter(id => id !== req.userId);
-
-  res.json({ message: 'Unfollowed user', currentUser: { ...currentUser, password: undefined } });
+router.post('/unfollow/:id', [verifyToken], (req, res) => {
+  // TODO: Remove target user from current user's following list.
+  // - Validate target user exists.
+  // - Persist follower/following relationships.
+  // - Return confirmation and updated current user.
+  res.status(501).json({ message: 'Unfollow action should be handled by the data layer and return the updated current user.' });
 });
 
 module.exports = router;
