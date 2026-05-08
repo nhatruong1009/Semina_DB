@@ -9,6 +9,7 @@ const PostCard = ({ post, onUpdate }) => {
   const [showComments, setShowComments] = React.useState(false);
 
   const handleLike = async () => {
+    if (!user) return alert('Please login again');
     try {
       if (post.likes.includes(user.id)) {
         await postAPI.unlikePost(post.id);
