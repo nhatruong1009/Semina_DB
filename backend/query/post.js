@@ -22,11 +22,12 @@ const transformPostInternal = async (post) => {
             profileImage: p.author.profileImage || 'https://via.placeholder.com/150'
         },
         content: p.content?.text || '',
-        image: p.content?.media?.[0]?.url || '',
+        images: p.content?.media?.map(m => m.url) || [],
         likes: reactions.filter(r => r.type === 'like').map(r => r.user_id),
         comments: commentsList.map(c => ({
             id: c._id.toString(),
             userId: c.user.id,
+            userName: c.user.name || "User",
             text: c.content,
             createdAt: c.created_at
         })),

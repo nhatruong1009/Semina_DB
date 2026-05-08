@@ -48,23 +48,40 @@ const PostCard = ({ post, onUpdate }) => {
   return (
     <div className="post-card">
       <div className="post-header">
-        <img src={post.author?.profileImage} alt="author" className="profile-image" />
+        <img 
+          src={post.author?.profileImage || "https://via.placeholder.com/150"} 
+          alt="author" 
+          className="profile-image" 
+          onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${post.author?.name || 'U'}&background=random`; }}
+        />
         <div className="post-info">
-          <h4>{post.author?.name}</h4>
-          <p className="post-title">{post.author?.title}</p>
-          <p className="post-time">{new Date(post.createdAt).toLocaleDateString()}</p>
+          <h4>{post.author?.name || "User"}</h4>
+          <p className="post-title">{post.author?.title || post.author?.headline || "Member"}</p>
+          <p className="post-time">{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Just now"}</p>
         </div>
       </div>
 
       <div className="post-content">
         <p>{post.content}</p>
-        {post.image && <img src={post.image} alt="post" />}
+        {post.images && post.images.length > 0 && (
+          <div className={`post-images-grid ${post.images.length > 1 ? 'grid-multiple' : ''}`}>
+            {post.images.map((img, index) => (
+              <img 
+                key={index}
+                src={img} 
+                alt={`post-${index}`} 
+                className="post-image-item"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="post-stats">
-        <span>{post.likes.length} likes</span>
-        <span>{post.comments.length} comments</span>
-        <span>{post.shares} shares</span>
+        <span>{post.likes?.length || 0} likes</span>
+        <span>{post.comments?.length || 0} comments</span>
+        <span>{post.shares || 0} shares</span>
       </div>
 
       <div className="post-actions">
@@ -84,7 +101,7 @@ const PostCard = ({ post, onUpdate }) => {
           <div className="comments-list">
             {post.comments.map((comment) => (
               <div key={comment.id} className="comment">
-                <strong>{post.author?.name}</strong>
+                <strong>{comment.userName || "User"}</strong>
                 <p>{comment.text}</p>
               </div>
             ))}
