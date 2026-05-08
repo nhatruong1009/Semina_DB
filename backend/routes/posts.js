@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { redisMiddleware } = require('../middleware/user');
 const PostQuery = require('../query/post');
+const datadriven = require('../datadriven/data_collector')
 
 /**
  * Create a new post
@@ -11,6 +12,10 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const { content, image } = req.body;
         const result = await PostQuery.SaveContent(req.userId, content, image);
+        await datadriven.publishPostsEvent(
+            datadriven.POSTS_EVENT_TYPE.CREATE, 
+            {post_id: result.id, author: result.author}
+        );
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);
@@ -35,6 +40,8 @@ router.get('/feed', [verifyToken], async (req, res) => {
  */
 router.post('/:id/like', [verifyToken, redisMiddleware], async (req, res) => {
     try {
+        // we may want to create link in neo4j first, if success then increate the counter latter 
+        // (should we use kafka like we do in /create because the redis cache notificaton will be need it too)
         const result = await PostQuery.LikePost(req.params.id, req.userId);
         res.json(result);
     } catch (err) {

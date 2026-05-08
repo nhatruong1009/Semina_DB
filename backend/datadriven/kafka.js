@@ -13,7 +13,7 @@ const kafka = new Kafka({
 // Connection pool: keep one producer and one consumer instance
 let producer;
 let consumer;
-
+let handlers = {};
 /**
  * Get or create a Kafka producer
  */
@@ -71,10 +71,15 @@ async function produce(topic, message) {
  * @param {string} topic
  * @param {function} handler - callback for each message
  */
-async function consume(topic, handler) {
+async function subscribe(topic, handler) {
   const c = await getConsumer();
   await c.subscribe({ topic, fromBeginning: true });
 
+  handlers[topic] = handler;
+}
+
+async function consume() {
+  const c = await getConsumer();
   await c.run({
     eachMessage: async ({ topic, partition, message }) => {
       let payload = message.value.toString();
@@ -88,7 +93,7 @@ async function consume(topic, handler) {
         }
       }
 
-      handler(payload);
+      handlers[topic](payload);
     },
   });
 }
@@ -97,6 +102,7 @@ async function consume(topic, handler) {
 module.exports = {
     produce,
     consume,
+    subscribe,
     getProducer,
     getConsumer,
 };

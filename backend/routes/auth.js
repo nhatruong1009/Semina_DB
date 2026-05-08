@@ -33,7 +33,7 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    const userPayload = { ...profile, id: profile.user_id, password: undefined };
+    const userPayload = { ...profile, id: profile.user_id, password_hash: undefined };
     return res.status(201).json({ token, user: userPayload });
   } catch (err) {
     if (err.code === '23505' && err.detail && err.detail.includes('(email)')) {
@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
-    const userPayload = { ...user, id: userId, password: undefined };
+    const userPayload = { ...user, id: userId, password_hash: undefined };
     res.json({ token, user: userPayload });
 
   } catch (err) {
