@@ -69,17 +69,17 @@ class Neo4j {
 		return this.isReady() ? this.pool.session() : false;
 	}
 
-	async Query(query) {
+	async Query(query, params = {}) {
 		const session = this.getSession();
 		if (!session) throw new Error("Unable to establish a connection to the database.");
-			try {
-			const result = await session.run(query);
-			return result.records;	 // return the records directly
+		try {
+			const result = await session.run(query, params);
+			return result.records;
 		} catch (err) {
 			console.error("Error running query:", err);
 			return [];
 		} finally {
-			await session.close();	 // close the session once, always
+			await session.close();
 		}
 	}
 }

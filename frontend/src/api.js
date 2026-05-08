@@ -34,8 +34,18 @@ export const postAPI = {
 };
 
 export const jobAPI = {
-  createJob: (title, company, location, description, salary) => 
+  createJob: (title, company, location, description, salary) =>
     API.post('/jobs/create', { title, company, location, description, salary }),
   getJobs: () => API.get('/jobs'),
   applyJob: (id) => API.post(`/jobs/${id}/apply`)
+};
+
+export const neo4jAPI = {
+  getSuggestions: (userId) => API.get(`/users/neo4j/suggestions/${userId}`),
+  getMutual: (userId1, userId2) => API.get(`/users/neo4j/mutual/${userId1}/${userId2}`),
+  getJobRecommendations: (userId) => API.get(`/users/neo4j/job-recommendations/${userId}`),
+  getSameSchool: (userId) => API.get(`/users/neo4j/same-school/${userId}`),
+  getSameCompany: (userId) => API.get(`/users/neo4j/same-company/${userId}`),
+  connect: (userId1, userId2) => API.post('/users/neo4j/connect', { userId1, userId2 }),
+  follow: (followerId, followeeId) => API.post('/users/neo4j/follow', { followerId, followeeId }),
 };
