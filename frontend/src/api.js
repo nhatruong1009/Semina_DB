@@ -41,11 +41,11 @@ export const jobAPI = {
 };
 
 export const neo4jAPI = {
-  getSuggestions: (userId) => API.get(`/users/neo4j/suggestions/${userId}`),
-  getMutual: (userId1, userId2) => API.get(`/users/neo4j/mutual/${userId1}/${userId2}`),
-  getJobRecommendations: (userId) => API.get(`/users/neo4j/job-recommendations/${userId}`),
-  getSameSchool: (userId) => API.get(`/users/neo4j/same-school/${userId}`),
-  getSameCompany: (userId) => API.get(`/users/neo4j/same-company/${userId}`),
-  connect: (userId1, userId2) => API.post('/users/neo4j/connect', { userId1, userId2 }),
-  follow: (followerId, followeeId) => API.post('/users/neo4j/follow', { followerId, followeeId }),
+  getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
+  getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
+  getJobRecommendations: (userId) => API.get(`/users/job-recommendations/${userId}`),
+  getSameSchool: (userId, params) => API.get(`/users/same-school/${userId}`, { params }),
+  getSameCompany: (userId, params) => API.get(`/users/same-company/${userId}`, { params }),
+  connect: (userId1, userId2) => API.post('/users/connect', { userId1, userId2 }),
+  follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
 };

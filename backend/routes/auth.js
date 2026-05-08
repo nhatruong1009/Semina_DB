@@ -3,7 +3,6 @@ const router = express.Router();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../query/user');
-const Neo4j = require('../query/neo4j');
 const { publishUserCreated } = require('../datadriven/data_collector');
 
 router.post('/register', async (req, res) => {
@@ -20,9 +19,6 @@ router.post('/register', async (req, res) => {
 
     const profile = records.rows[0];
     console.log(`User created: ${profile.email} successfully`);
-
-    // sync to neo4j only after postgres insert succeeds
-    await Neo4j.createUser(profile.user_id, profile.full_name, profile.headline || '');
 
     const r = await publishUserCreated({
       user_id: profile.user_id || profile.id,

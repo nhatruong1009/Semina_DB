@@ -7,13 +7,15 @@ const createUser = (userId, name, headline = '', location = '') =>
     { userId: String(userId), name, headline, location }
   );
 
-const getSuggestions = (userId) =>
+const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:CONNECTS]->(friend)-[:CONNECTS]->(suggest)
      WHERE suggest.user_id <> $userId
      AND NOT (u)-[:CONNECTS]->(suggest)
-     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id`,
-    { userId }
+     AND NOT suggest.user_id IN $exclude
+     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id
+     LIMIT $limit`,
+    { userId, exclude, limit }
   );
 
 const getMutualConnections = (userId1, userId2) =>
@@ -32,20 +34,24 @@ const getJobRecommendations = (userId) =>
     { userId }
   );
 
-const getSameSchool = (userId) =>
+const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:STUDIED_AT]->(school)<-[:STUDIED_AT]-(other:User)
      WHERE other.user_id <> $userId
-     RETURN other.name AS name, other.user_id AS user_id, school.name AS school`,
-    { userId }
+     AND NOT other.user_id IN $exclude
+     RETURN other.name AS name, other.user_id AS user_id, school.name AS school
+     LIMIT $limit`,
+    { userId, exclude, limit }
   );
 
-const getSameCompany = (userId) =>
+const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:WORKS_AT]->(company)<-[:WORKS_AT]-(other:User)
      WHERE other.user_id <> $userId
-     RETURN other.name AS name, other.user_id AS user_id, company.name AS company`,
-    { userId }
+     AND NOT other.user_id IN $exclude
+     RETURN other.name AS name, other.user_id AS user_id, company.name AS company
+     LIMIT $limit`,
+    { userId, exclude, limit }
   );
 
 const createConnect = (userId1, userId2) =>
