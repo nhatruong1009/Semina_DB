@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
-// define mongodb schema here
+// --- AUTHOR SCHEMA ---
+const authorSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  headline: String
+});
+
+// --- CONTENT SCHEMA ---
 const mediaSchema = new mongoose.Schema({
   type: { type: String, enum: ["image", "video"] },
   url: String
@@ -17,28 +24,47 @@ const contentSchema = new mongoose.Schema({
   link_preview: linkPreviewSchema
 });
 
+// --- STATS SCHEMA ---
 const statsSchema = new mongoose.Schema({
-  likes: Number,
-  comments: Number,
-  shares: Number
+  likes: { type: Number, default: 0 },
+  comments: { type: Number, default: 0 },
+  shares: { type: Number, default: 0 }
 });
 
-const authorSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  name: { type: String, required: true },
-  headline: String
-});
-
+// --- POST SCHEMA ---
 const postSchema = new mongoose.Schema({
   author: { type: authorSchema, required: true },
   content: { type: contentSchema, required: true },
-  stats: statsSchema,
-  visibility: { type: String, enum: ["public", "connections"] },
+  stats: { type: statsSchema, default: () => ({}) },
+  visibility: { type: String, enum: ["public", "connections"], default: "public" },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });
 
+// --- COMMENT SCHEMA ---
+const commentSchema = new mongoose.Schema({
+  post_id: { type: String, required: true },
+  user: {
+    id: { type: String, required: true },
+    name: String
+  },
+  content: { type: String, required: true },
+  created_at: { type: Date, default: Date.now }
+});
+
+// --- REACTION SCHEMA ---
+const reactionSchema = new mongoose.Schema({
+  post_id: { type: String, required: true },
+  user_id: { type: String, required: true },
+  type: { type: String, enum: ["like", "share"], required: true },
+  created_at: { type: Date, default: Date.now }
+});
+
+// Indexes
 postSchema.index({ "author.id": 1 });
 postSchema.index({ created_at: -1 });
+commentSchema.index({ post_id: 1 });
+reactionSchema.index({ post_id: 1 });
+reactionSchema.index({ post_id: 1, user_id: 1 }, { unique: true });
 
-module.exports = { postSchema }
+module.exports = { postSchema, commentSchema, reactionSchema }
