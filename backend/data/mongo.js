@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { postSchema } = require('./mongo_shema')
+const { postSchema, commentSchema, reactionSchema } = require('./mongo_shema')
 require('dotenv').config();
 
 const crypto = require("crypto");
@@ -64,20 +64,34 @@ class MongoDB {
   constructor(pool) {
     this.pool = pool;
     this.post = mongoose.model("Post", postSchema);
+    this.comment = mongoose.model("Comment", commentSchema);
+    this.reaction = mongoose.model("Reaction", reactionSchema);
   }
 
   isReady() {
     return this.pool.isConnected();
   }
 
-  getPostModel() {
-    return this.isReady() ? this.post : false;
-  }
+  getPostModel() { return this.isReady() ? this.post : false; }
+  getCommentModel() { return this.isReady() ? this.comment : false; }
+  getReactionModel() { return this.isReady() ? this.reaction : false; }
 
   get Post () {
     const p = this.getPostModel();
     if (!p) throw new Error("Unable to establish a connection to the database.");
     return p;
+  }
+
+  get Comment () {
+    const c = this.getCommentModel();
+    if (!c) throw new Error("Unable to establish a connection to the database.");
+    return c;
+  }
+
+  get Reaction () {
+    const r = this.getReactionModel();
+    if (!r) throw new Error("Unable to establish a connection to the database.");
+    return r;
   }
 }
 
