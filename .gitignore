@@ -2,7 +2,3 @@ node_modules/
 dist/
 package-lock.json
 backend/coverage/
-
-# local only
-CLAUDE.md
-.idea/
