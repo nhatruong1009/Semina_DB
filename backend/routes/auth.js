@@ -1,74 +1,75 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const bcryptjs = require('bcryptjs');
-const { users, nextIds } = require('../data');
-const {getUser, GetContent, SaveContent, getUserWorks} = require('../query/example');
 const router = express.Router();
+const bcryptjs = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../query/user');
+const { publishUserCreated } = require('../datadriven/data_collector');
 
-router.post('/register', (req, res) => {
-  const { email, password, name } = req.body;
+router.post('/register', async (req, res) => {
+  // TODO: Persist a new user record in the database.
+  // - Validate email, password, and name.
+  // - Hash the password before storing.
+  // - Return a JWT token and the created user payload (without password).
+  try {
+    const { email, password, name } = req.body;
+    const records = await User.createUser(email, bcryptjs.hashSync(password, 10), name, "");
+    if (!records || records.rowCount === 0) {
+      return res.status(500).json({ success: false, error: "User creation failed" });
+    }
 
-  if (users.find(u => u.email === email)) {
-    return res.status(400).json({ error: 'User already exists' });
+    const profile = records.rows[0];
+    console.log(`User created: ${profile.email} successfully`);
+
+    const r = await publishUserCreated({
+      user_id: profile.user_id || profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      headline: profile.headline || '',
+      created_at: new Date().toISOString(),
+    });
+
+    const token = jwt.sign(
+      { id: profile.user_id, email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    return res.status(201).json({ token, user: { ...profile, password: undefined } });
+  } catch (err) {
+    if (err.code === '23505' && err.detail && err.detail.includes('(email)')) {
+      return res.status(409).json({ success: false, message: 'Email already exists' });
+    }
+    return res.status(500).json({ success: false, error: err.message });
   }
-
-  const newUser = {
-    id: nextIds.users++,
-    email,
-    password: bcryptjs.hashSync(password, 10),
-    name,
-    title: 'Job Title',
-    bio: '',
-    followers: [],
-    following: [],
-    profileImage: 'https://via.placeholder.com/150?text=' + name.replace(' ', '+')
-  };
-
-  users.push(newUser);
-
-  const token = jwt.sign({ id: newUser.id, email: newUser.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  res.status(201).json({ token, user: { ...newUser, password: undefined } });
 });
 
+
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  // TODO: Authenticate the user using stored credentials.
+  // - Lookup user by email.
+  // - Compare password hash.
+  // - Return a JWT token and authenticated user payload (without password).
+  try{
+    const { email, password } = req.body;
+    const records = await User.getUser(email);
+    if (!records || records.rowCount === 0) {
+      return res.status(401).json({ error: 'User not exists' });
+    }
+    const user = records.rows[0];
 
-  const r = await getUser(email);
-  console.log(r.rows)
-  const p = await GetContent("user124")
-  console.log(p)
+    if ( !bcryptjs.compareSync(password, user.password_hash)){
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign(
+      { id: user.user_id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user: { ...user, password: undefined } });
 
-  const w = await getUserWorks("<UUID_USER_1>")
-  w.forEach(record => {
-		console.log(record.get('user'), "--->" , record.get('company'));
-	});
-  
-  // const client = postgresQL.getClient();
-  // if (!client) {
-  //   return res.status(500).json({ error: 'Database connection failed' });
-  // }
-
-  // client.query('SELECT * FROM "users" WHERE email = $1', [email], (err, result) => {
-  //   if (err) {
-  //     console.log(err)
-  //   }
-  //   const user = result.rows[0];
-  //   console.log(` ${user.email}, ${user.password_hash}` )
-
-  //   if (!user || password !== user.password_hash) {
-  //     return res.status(401).json({ error: 'Invalid credentials' });
-  //   }
-
-  //   const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  //   res.json({ token, user: { ...user, password: undefined } });
-  // })
-  // const user = users.find(u => u.email === email);
-  // if (!user || !bcryptjs.compareSync(password, user.password)) {
-  //   return res.status(401).json({ error: 'Invalid credentials' });
-  // }
-
-  // const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  // res.json({ token, user: { ...user, password: undefined } });
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

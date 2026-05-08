@@ -61,16 +61,16 @@ CREATE INDEX idx_applications_user_id ON job_applications(user_id);
 
 
 
-WITH new_user AS (
-    -- Bước 1: Không truyền ID vào, để hệ thống tự sinh ra. Sau đó lấy ID đó trả về (RETURNING)
-    INSERT INTO users (email, password_hash) 
-    VALUES ('test@email.com', 'hashed_pass')
-    RETURNING id
-)
--- Bước 2: Lấy ID từ Bước 1 nhét vào bảng profiles
-INSERT INTO profiles (user_id, full_name, headline) 
-SELECT id, 'Nguyễn Văn A', 'Data Engineer' FROM new_user;
+-- WITH new_user AS (
+--     -- Bước 1: Không truyền ID vào, để hệ thống tự sinh ra. Sau đó lấy ID đó trả về (RETURNING)
+--     INSERT INTO users (email, password_hash) 
+--     VALUES ('test@email.com', 'hashed_pass')
+--     RETURNING id
+-- )
+-- -- Bước 2: Lấy ID từ Bước 1 nhét vào bảng profiles
+-- INSERT INTO profiles (user_id, full_name, headline) 
+-- SELECT id, 'Nguyễn Văn A', 'Data Engineer' FROM new_user;
 
 
-select * from users
-select * from profiles
+-- select * from users
+-- select * from profiles
