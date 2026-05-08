@@ -15,7 +15,7 @@ const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
      AND NOT suggest.user_id IN $exclude
      RETURN suggest.name AS suggested_user, suggest.user_id AS user_id
      LIMIT $limit`,
-    { userId, exclude, limit }
+    { userId, exclude, limit: parseInt(limit) }
   );
 
 const getMutualConnections = (userId1, userId2) =>
@@ -41,7 +41,7 @@ const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
      AND NOT other.user_id IN $exclude
      RETURN other.name AS name, other.user_id AS user_id, school.name AS school
      LIMIT $limit`,
-    { userId, exclude, limit }
+    { userId, exclude, limit: parseInt(limit) }
   );
 
 const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
@@ -51,7 +51,7 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
      AND NOT other.user_id IN $exclude
      RETURN other.name AS name, other.user_id AS user_id, company.name AS company
      LIMIT $limit`,
-    { userId, exclude, limit }
+    { userId, exclude, limit: parseInt(limit) }
   );
 
 const createConnect = (userId1, userId2) =>
@@ -68,6 +68,62 @@ const createFollow = (followerId, followeeId) =>
     { followerId, followeeId }
   );
 
+// ── Post interactions ────────────────────────────────────────────────
+
+const authored = (userId, postId) =>
+  neo4j.Query(
+    `MERGE (u:User {user_id: $userId})
+     MERGE (p:Post {post_id: $postId})
+     MERGE (u)-[:AUTHORED]->(p)`,
+    { userId: String(userId), postId: String(postId) }
+  );
+
+const likePost = (userId, postId) =>
+  neo4j.Query(
+    `MERGE (u:User {user_id: $userId})
+     MERGE (p:Post {post_id: $postId})
+     MERGE (u)-[:LIKED]->(p)`,
+    { userId: String(userId), postId: String(postId) }
+  );
+
+const unlikePost = (userId, postId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[r:LIKED]->(p:Post {post_id: $postId})
+     DELETE r`,
+    { userId: String(userId), postId: String(postId) }
+  );
+
+const commentPost = (userId, postId, commentId) =>
+  neo4j.Query(
+    `MERGE (u:User {user_id: $userId})
+     MERGE (p:Post {post_id: $postId})
+     MERGE (u)-[:COMMENTED {comment_id: $commentId}]->(p)`,
+    { userId: String(userId), postId: String(postId), commentId: String(commentId) }
+  );
+
+const sharePost = (userId, postId) =>
+  neo4j.Query(
+    `MERGE (u:User {user_id: $userId})
+     MERGE (p:Post {post_id: $postId})
+     MERGE (u)-[:SHARED]->(p)`,
+    { userId: String(userId), postId: String(postId) }
+  );
+
+const getPostInteractions = (postId) =>
+  neo4j.Query(
+    `MATCH (u:User)-[r:LIKED|COMMENTED|SHARED]->(p:Post {post_id: $postId})
+     RETURN u.user_id AS user_id, u.name AS name, type(r) AS action`,
+    { postId: String(postId) }
+  );
+
+const getFeedByNetwork = (userId) =>
+  neo4j.Query(
+    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)-[:LIKED|SHARED]->(p:Post)
+     RETURN DISTINCT p.post_id AS post_id, count(*) AS score
+     ORDER BY score DESC`,
+    { userId: String(userId) }
+  );
+
 module.exports = {
   createUser,
   getSuggestions,
@@ -77,4 +133,11 @@ module.exports = {
   getSameCompany,
   createConnect,
   createFollow,
+  authored,
+  likePost,
+  unlikePost,
+  commentPost,
+  sharePost,
+  getPostInteractions,
+  getFeedByNetwork,
 };
