@@ -66,7 +66,7 @@ const Network = () => {
 
       {suggestions.length > 0 && (
         <section>
-          <h3>Người bạn có thể biết</h3>
+          <h3>People You May Know</h3>
           <div className="users-grid">
             {suggestions.map((s) => (
               <div key={s.user_id} className="user-card">
@@ -76,7 +76,7 @@ const Network = () => {
                   disabled={connectedIds.includes(s.user_id)}
                   className="follow"
                 >
-                  {connectedIds.includes(s.user_id) ? 'Đã kết nối' : 'Kết nối'}
+                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
                 </button>
               </div>
             ))}
@@ -86,7 +86,7 @@ const Network = () => {
 
       {sameSchool.length > 0 && (
         <section>
-          <h3>Cùng trường</h3>
+          <h3>Same School</h3>
           <div className="users-grid">
             {sameSchool.map((s) => (
               <div key={s.user_id} className="user-card">
@@ -97,7 +97,7 @@ const Network = () => {
                   disabled={connectedIds.includes(s.user_id)}
                   className="follow"
                 >
-                  {connectedIds.includes(s.user_id) ? 'Đã kết nối' : 'Kết nối'}
+                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
                 </button>
               </div>
             ))}
@@ -107,7 +107,7 @@ const Network = () => {
 
       {sameCompany.length > 0 && (
         <section>
-          <h3>Cùng công ty</h3>
+          <h3>Same Company</h3>
           <div className="users-grid">
             {sameCompany.map((s) => (
               <div key={s.user_id} className="user-card">
@@ -118,7 +118,7 @@ const Network = () => {
                   disabled={connectedIds.includes(s.user_id)}
                   className="follow"
                 >
-                  {connectedIds.includes(s.user_id) ? 'Đã kết nối' : 'Kết nối'}
+                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
                 </button>
               </div>
             ))}
@@ -127,7 +127,7 @@ const Network = () => {
       )}
 
       <section>
-        <h3>Tất cả người dùng</h3>
+        <h3>All Users</h3>
         <div className="users-grid">
           {users.map((u) => (
             <div key={u.id} className="user-card">
