@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { userAPI, neo4jAPI } from '../api';
+import { userAPI, networkAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import '../styles/Network.css';
 
@@ -18,15 +18,15 @@ const Network = () => {
       .catch(err => console.error('Error fetching users:', err));
 
     if (user?.id) {
-      neo4jAPI.getSuggestions(String(user.id))
+      networkAPI.getSuggestions(String(user.id))
         .then(res => setSuggestions(res.data))
         .catch(() => {});
 
-      neo4jAPI.getSameSchool(String(user.id))
+      networkAPI.getSameSchool(String(user.id))
         .then(res => setSameSchool(res.data))
         .catch(() => {});
 
-      neo4jAPI.getSameCompany(String(user.id))
+      networkAPI.getSameCompany(String(user.id))
         .then(res => setSameCompany(res.data))
         .catch(() => {});
     }
@@ -35,7 +35,7 @@ const Network = () => {
   const handleFollow = async (userId) => {
     try {
       await userAPI.follow(userId);
-      await neo4jAPI.follow(String(user.id), String(userId));
+      await networkAPI.follow(String(user.id), String(userId));
       setFollowingIds([...followingIds, userId]);
     } catch (err) {
       console.error('Error following user:', err);
@@ -53,7 +53,7 @@ const Network = () => {
 
   const handleConnect = async (targetUserId) => {
     try {
-      await neo4jAPI.connect(String(user.id), String(targetUserId));
+      await networkAPI.connect(String(user.id), String(targetUserId));
       setConnectedIds([...connectedIds, targetUserId]);
     } catch (err) {
       console.error('Error connecting:', err);

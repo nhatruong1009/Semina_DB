@@ -40,7 +40,7 @@ export const jobAPI = {
   applyJob: (id) => API.post(`/jobs/${id}/apply`)
 };
 
-export const neo4jAPI = {
+export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
   getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
   getJobRecommendations: (userId) => API.get(`/users/job-recommendations/${userId}`),
