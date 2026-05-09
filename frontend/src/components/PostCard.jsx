@@ -147,6 +147,7 @@ const PostCard = ({ post, onUpdate }) => {
 
   return (
     <div className="post-card">
+      {showCopied && <div className="copied-badge">Link copied to clipboard!</div>}
       <div className="post-header">
         <img 
           src={post.author?.profileImage} 
@@ -190,7 +191,6 @@ const PostCard = ({ post, onUpdate }) => {
         <button onClick={handleShare} className="action-btn share-btn">
           <span className="icon grey">🔗</span>
           <span className="label">Share</span>
-          {showCopied && <div className="copied-badge">Link copied!</div>}
         </button>
       </div>
 
