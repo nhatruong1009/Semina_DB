@@ -8,10 +8,10 @@ import Navbar from './components/Navbar';
 import './App.css';
 
 function App() {
-  const { token } = useContext(AuthContext);
+  const { accessToken } = useContext(AuthContext);
   const [currentPage, setCurrentPage] = useState('feed');
 
-  if (!token) {
+  if (!accessToken) {
     return <Auth />;
   }
 
