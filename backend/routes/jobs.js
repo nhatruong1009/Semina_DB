@@ -1,19 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const Jobs = require('../query/jobs')
+const Jobs = require('../query/jobs');
+const { publishJobEvent, JOBS_EVENT_TYPE } = require('../datadriven/data_collector');
 
 router.post('/create', [verifyToken], async (req, res) => {
   try {
     const { title, company_id, location, description, salary_range } = req.body;
     console.log(title, company_id, location, description, salary_range);
     const createdAt = new Date();
-    const records = await Jobs.Create(company_id, title, salary_range, createdAt)    
+    const records = await Jobs.Create(company_id, title, salary_range, createdAt)
     if (!records || records.rowCount === 0) {
       console.log("Job creation failed");
       return res.status(500).json({ success: false, error: "Job creation failed" });
     }
-    res.json(records.rows[0]);
+    const job = records.rows[0];
+    publishJobEvent(JOBS_EVENT_TYPE.CREATE, {
+      job_id: job.id,
+      title: job.title,
+      company_id: job.company_id,
+    }).catch(err => console.error('Kafka publishJobEvent CREATE:', err));
+    res.json(job);
   } catch (err) {
     console.error('Error creating job:', err);
     res.status(500).json({ error: err.message });
@@ -45,6 +52,10 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
       return res.status(500).json({ success: false, error: "Job apply failed" });
     }
 
+    publishJobEvent(JOBS_EVENT_TYPE.APPLY, {
+      user_id: userId,
+      job_id: jobId,
+    }).catch(err => console.error('Kafka publishJobEvent APPLY:', err));
     res.json(records.rows[0]);
   } catch (err) {
     console.error('Error applying to job:', err);

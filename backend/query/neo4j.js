@@ -107,6 +107,21 @@ const getSuggestionsAll = async (userId, { limit = 20, ratio = DEFAULT_RATIO } =
   return results;
 };
 
+const createJobNode = (jobId, title, companyId) =>
+  neo4j.Query(
+    `MERGE (j:Job {job_id: $jobId})
+     SET j.title = $title, j.company_id = $companyId`,
+    { jobId: String(jobId), title, companyId: String(companyId) }
+  );
+
+const applyJob = (userId, jobId) =>
+  neo4j.Query(
+    `MERGE (u:User {user_id: $userId})
+     MERGE (j:Job {job_id: $jobId})
+     MERGE (u)-[:APPLIED]->(j)`,
+    { userId: String(userId), jobId: String(jobId) }
+  );
+
 const createConnect = (userId1, userId2) =>
   neo4j.Query(
     `MATCH (u1:User {user_id: $userId1}), (u2:User {user_id: $userId2})
@@ -207,6 +222,8 @@ module.exports = {
   getJobRecommendations,
   getSameSchool,
   getSameCompany,
+  createJobNode,
+  applyJob,
   createConnect,
   createFollow,
   unfollow,
