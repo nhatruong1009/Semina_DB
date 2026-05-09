@@ -1,4 +1,4 @@
-const { produce, getConsumer } = require('./kafka');
+const { produce, consume } = require('./kafka');
 const Neo4j = require('../query/neo4j');
 
 const USER_CREATED = 'user.created';
@@ -53,17 +53,9 @@ async function consumePostsEvents(payload) {
 }
 
 async function startDataCollectors() {
-  const c = await getConsumer();
-  await c.subscribe({ topics: [USER_CREATED, POSTS_TOPIC], fromBeginning: true });
-  await c.run({
-    eachMessage: async ({ topic, message }) => {
-      let payload = message.value.toString();
-      if (message.headers?.isObject?.toString() === 'true') {
-        try { payload = JSON.parse(payload); } catch (e) { console.error('Failed to parse Kafka payload', e); }
-      }
-      if (topic === USER_CREATED) await consumeUserCreated(payload);
-      else if (topic === POSTS_TOPIC) await consumePostsEvents(payload);
-    },
+  await consume({
+    [USER_CREATED]: consumeUserCreated,
+    [POSTS_TOPIC]: consumePostsEvents,
   });
 }
 
