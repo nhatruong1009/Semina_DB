@@ -1,0 +1,199 @@
+.job-card.premium-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.job-card.premium-card:hover {
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+  border-color: #0a66c2;
+  transform: translateY(-2px);
+}
+
+.job-card-main {
+  display: flex;
+  gap: 16px;
+}
+
+.job-card-left {
+  flex-shrink: 0;
+}
+
+.company-logo-placeholder {
+  width: 56px;
+  height: 56px;
+  background: #f3f2ef;
+  color: #0a66c2;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border: 1px solid #e0e0e0;
+}
+
+.job-card-center {
+  flex-grow: 1;
+}
+
+.job-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.job-title-text {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #0a66c2;
+  font-weight: 700;
+}
+
+.company-name-text {
+  margin: 4px 0 12px 0;
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.job-metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.meta-badge {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.location-badge {
+  background: #f3f2ef;
+  color: #666;
+}
+
+.salary-badge {
+  background: #008a001a;
+  color: #007300;
+  font-weight: 700;
+  border: 1px solid #008a0033;
+}
+
+
+.job-description-container {
+  margin-bottom: 12px;
+}
+
+.job-description-text {
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.job-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+
+.applicant-count-badge {
+  font-size: 0.85rem;
+  color: #0a66c2;
+  font-weight: 600;
+}
+
+.count-number {
+  background: #e8f3ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-right: 4px;
+}
+
+.posted-date {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.job-card-footer-action {
+  display: flex;
+  justify-content: stretch;
+}
+
+.apply-btn-premium, .view-applicants-btn-full {
+  width: 100%;
+  padding: 12px;
+  border-radius: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.apply-btn-premium {
+  background: #0a66c2;
+  color: white;
+  border: none;
+}
+
+.apply-btn-premium:hover:not(:disabled) {
+  background: #004182;
+  box-shadow: 0 4px 8px rgba(10, 102, 194, 0.3);
+}
+
+.apply-btn-premium.applied-state {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.view-applicants-btn-full {
+  background: white;
+  color: #0a66c2;
+  border: 1px solid #0a66c2;
+}
+
+.view-applicants-btn-full:hover {
+  background: #f0f7ff;
+}
+
+/* Admin Specific */
+.job-admin-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-btn {
+  padding: 6px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover {
+  background: #f0f0f0;
+}

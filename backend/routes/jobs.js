@@ -7,11 +7,9 @@ const { publishJobEvent, JOBS_EVENT_TYPE } = require('../datadriven/data_collect
 router.post('/create', [verifyToken], async (req, res) => {
   try {
     const { title, company_id, location, description, salary_range } = req.body;
-    console.log(title, company_id, location, description, salary_range);
     const createdAt = new Date();
-    const records = await Jobs.Create(company_id, title, salary_range, createdAt)
+    const records = await Jobs.Create(company_id, title, location, description, salary_range, createdAt)
     if (!records || records.rowCount === 0) {
-      console.log("Job creation failed");
       return res.status(500).json({ success: false, error: "Job creation failed" });
     }
     const job = records.rows[0];
@@ -27,6 +25,30 @@ router.post('/create', [verifyToken], async (req, res) => {
   }
 });
 
+// Update a job
+router.put('/:id', [verifyToken], async (req, res) => {
+  try {
+    const { title, location, description, salary_range } = req.body;
+    const records = await Jobs.Update(req.params.id, title, location, description, salary_range);
+    if (!records || records.rowCount === 0) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    res.json(records.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a job
+router.delete('/:id', [verifyToken], async (req, res) => {
+  try {
+    await Jobs.Delete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all jobs with company and author info
 router.get('/', [verifyToken], async (req, res) => {
   try {
@@ -34,6 +56,26 @@ router.get('/', [verifyToken], async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get jobs managed by current user
+router.get('/my-jobs', [verifyToken], async (req, res) => {
+  try {
+    const result = await Jobs.GetByManager(req.userId);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get applicants for a job
+router.get('/:id/applicants', [verifyToken], async (req, res) => {
+  try {
+    const result = await Jobs.GetApplicants(req.params.id);
+    res.json(result.rows);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -48,7 +90,6 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
     const records = await Jobs.Apply(jobId, userId)
 
     if (!records || records.rowCount === 0) {
-      console.log("Job apply failed");
       return res.status(500).json({ success: false, error: "Job apply failed" });
     }
 
