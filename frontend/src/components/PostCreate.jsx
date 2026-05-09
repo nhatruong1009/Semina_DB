@@ -35,6 +35,7 @@ const PostCreate = ({ onPostCreated }) => {
       onPostCreated();
     } catch (err) {
       console.error('Error creating post:', err);
+      alert('FAILED TO CREATE POST: ' + (err.response?.data?.error || err.message));
     }
     setLoading(false);
   };
@@ -52,16 +53,24 @@ const PostCreate = ({ onPostCreated }) => {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
     setUploading(true);
     try {
-      const res = await postAPI.uploadFile(file);
-      setMedia([...media, { type: res.data.type, url: res.data.url }]);
+      // Process all selected files
+      const uploadPromises = files.map(file => postAPI.uploadFile(file));
+      const results = await Promise.all(uploadPromises);
+      
+      const newMediaItems = results.map(res => ({
+        type: res.data.type,
+        url: res.data.url
+      }));
+
+      setMedia(prev => [...prev, ...newMediaItems]);
     } catch (err) {
-      console.error('Error uploading file:', err);
-      alert('Failed to upload file. Please try again.');
+      console.error('Error uploading files:', err);
+      alert('Failed to upload one or more files. Please try again.');
     }
     setUploading(false);
     // Reset file input
@@ -125,6 +134,7 @@ const PostCreate = ({ onPostCreated }) => {
             style={{ display: 'none' }} 
             onChange={handleFileChange}
             accept="image/*,video/*"
+            multiple
           />
 
           <div className="post-create-footer">
