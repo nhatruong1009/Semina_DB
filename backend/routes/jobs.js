@@ -25,7 +25,7 @@ router.get('/', [verifyToken], async (req, res) => {
   }
 });
 
-// Get jobs applied by current user (from main)
+// Get jobs applied by current user
 router.get('/applied', [verifyToken], async (req, res) => {
   try {
     const result = await Jobs.GetApplied(req.userId);
