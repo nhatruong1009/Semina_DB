@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, checkSuperAdmin} = require('../middleware/auth');
 const Companies = require('../query/companies');
+const Neo4j = require('../query/neo4j');
 
 // Create company and assign an admin
 router.post('/companies/create', [verifyToken, checkSuperAdmin], async (req, res) => {
@@ -16,7 +17,15 @@ router.post('/companies/create', [verifyToken, checkSuperAdmin], async (req, res
     const company = companyResult.rows[0];
 
     // Assign the chosen admin user
-    await Companies.AddCompanyUser(company.id, email, 'ADMIN');
+    const adminResult = await Companies.AddCompanyUser(company.id, email, 'ADMIN');
+    const adminUserId = adminResult.rows[0]?.user_id;
+
+    Neo4j.createCompanyNode(company.id, company.name)
+      .catch(err => console.error('Neo4j createCompanyNode:', err));
+    if (adminUserId) {
+      Neo4j.worksAt(adminUserId, company.id)
+        .catch(err => console.error('Neo4j worksAt:', err));
+    }
 
     res.json(company);
   } catch (err) {
