@@ -3,6 +3,25 @@ const router = express.Router();
 const Neo4j = require('../query/neo4j');
 const { verifyToken } = require('../middleware/auth');
 
+router.get('/suggestions-all/:userId', [verifyToken], async (req, res) => {
+  try {
+    const { limit, friend, same_school, same_company, popular } = req.query;
+    const ratio = {
+      friend:       friend       ? parseFloat(friend)       : 0.4,
+      same_school:  same_school  ? parseFloat(same_school)  : 0.2,
+      same_company: same_company ? parseFloat(same_company) : 0.2,
+      popular:      popular      ? parseFloat(popular)      : 0.2,
+    };
+    const results = await Neo4j.getSuggestionsAll(req.params.userId, {
+      limit: limit ? parseInt(limit) : undefined,
+      ratio,
+    });
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/suggestions/:userId', [verifyToken], async (req, res) => {
   try {
     const { limit, exclude } = req.query;

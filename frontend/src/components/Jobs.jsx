@@ -13,6 +13,9 @@ const Jobs = () => {
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJobApplicants, setSelectedJobApplicants] = useState(null); // { jobTitle, list }
   
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [appliedIds, setAppliedIds] = useState(new Set());
+
   const [formData, setFormData] = useState({
     title: '',
     company_id: '',
@@ -66,6 +69,12 @@ const Jobs = () => {
 
   useEffect(() => {
     fetchJobs();
+    jobAPI.getApplied()
+      .then(res => {
+        setAppliedJobs(res.data);
+        setAppliedIds(new Set(res.data.map(j => j.id)));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -78,6 +87,17 @@ const Jobs = () => {
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleApply = async (jobId) => {
+    try {
+      await jobAPI.applyJob(jobId);
+      setAppliedIds(prev => new Set([...prev, jobId]));
+      const res = await jobAPI.getApplied();
+      setAppliedJobs(res.data);
+    } catch (err) {
+      console.error('Apply failed:', err);
+    }
   };
 
   const handlePostJob = async (e) => {
@@ -142,7 +162,7 @@ const Jobs = () => {
     
     setFormData({
       title: job.title,
-      company_id: job.company_id, // Note: This might need mapping if the API returns name instead of ID
+      company_id: job.company_id,
       address: extra.address || '',
       description: extra.description || job.description || '',
       salaryMin: extra.min || '',
@@ -272,8 +292,29 @@ const Jobs = () => {
           </div>
         )}
 
+        {/* Applied Jobs Section (from main) */}
+        {appliedJobs.length > 0 && (
+          <div className="jobs-list" style={{ marginTop: '40px' }}>
+            <h3>Jobs You've Applied For</h3>
+            <div className="admin-job-grid">
+              {appliedJobs.map(job => (
+                <div key={job.id} className="job-admin-card-v2" style={{ borderLeft: '4px solid #057642' }}>
+                  <h4>{job.title}</h4>
+                  <p className="card-meta">🏢 {job.company_name}</p>
+                  <p className="card-meta">📅 Applied: {new Date(job.applied_at).toLocaleDateString()}</p>
+                  <div className="card-footer">
+                    <span className="status-badge" style={{ background: '#e1f4e9', color: '#057642', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      {job.application_status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="jobs-list">
-          <h3>Your Job Postings</h3>
+          <h3>Your Job Postings (Admin)</h3>
           <div className="admin-job-grid">
             {jobs.filter(j => myCompanies.some(c => c.name === j.company_name)).map(job => {
               let extra = {};
@@ -302,6 +343,22 @@ const Jobs = () => {
             })}
           </div>
         </div>
+
+        {/* Recommendations Section (from main) */}
+        {recommendations.length > 0 && (
+          <div className="jobs-list" style={{ marginTop: '40px' }}>
+            <h3>Recommended for You</h3>
+            <div className="admin-job-grid">
+              {recommendations.map((rec, i) => (
+                <div key={i} className="job-admin-card-v2" style={{ background: '#f8faff' }}>
+                  <h4>{rec.job}</h4>
+                  <p className="card-meta">{rec.matching_skills} matching skill{rec.matching_skills !== 1 ? 's' : ''}</p>
+                  {rec.salary && <p className="salary-tag">{rec.salary}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

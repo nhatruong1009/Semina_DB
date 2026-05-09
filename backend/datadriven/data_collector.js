@@ -3,6 +3,7 @@ const Neo4j = require('../query/neo4j');
 
 const USER_CREATED = 'user.created';
 const POSTS_TOPIC = 'posts.events';
+const JOBS_TOPIC = 'jobs.events';
 
 const POSTS_EVENT_TYPE = {
   CREATE: 'CREATE',
@@ -11,6 +12,11 @@ const POSTS_EVENT_TYPE = {
   COMMENT_ADD: 'COMMENT_ADD',
   COMMENT_DEL: 'COMMENT_DEL',
   SHARE: 'SHARE',
+};
+
+const JOBS_EVENT_TYPE = {
+  CREATE: 'CREATE',
+  APPLY: 'APPLY',
 };
 
 async function publishEvent(topic, payload) {
@@ -23,6 +29,10 @@ async function publishUserCreated(payload) {
 
 async function publishPostEvent(eventType, payload) {
   return publishEvent(POSTS_TOPIC, { type: eventType, ...payload });
+}
+
+async function publishJobEvent(eventType, payload) {
+  return publishEvent(JOBS_TOPIC, { type: eventType, ...payload });
 }
 
 async function consumeUserCreated(payload) {
@@ -52,10 +62,22 @@ async function consumePostsEvents(payload) {
   }
 }
 
+async function consumeJobsEvents(payload) {
+  switch (payload.type) {
+    case JOBS_EVENT_TYPE.CREATE:
+      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id);
+      break;
+    case JOBS_EVENT_TYPE.APPLY:
+      await Neo4j.applyJob(payload.user_id, payload.job_id);
+      break;
+  }
+}
+
 async function startDataCollectors() {
   await consume({
     [USER_CREATED]: consumeUserCreated,
     [POSTS_TOPIC]: consumePostsEvents,
+    [JOBS_TOPIC]: consumeJobsEvents,
   });
 }
 
@@ -63,6 +85,8 @@ module.exports = {
   publishEvent,
   publishUserCreated,
   publishPostEvent,
+  publishJobEvent,
   POSTS_EVENT_TYPE,
+  JOBS_EVENT_TYPE,
   startDataCollectors,
 };

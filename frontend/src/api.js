@@ -49,11 +49,13 @@ export const jobAPI = {
   applyJob: (id) => API.post(`/jobs/${id}/apply`),
   getApplicants: (id) => API.get(`/jobs/${id}/applicants`),
   updateJob: (id, data) => API.put(`/jobs/${id}`, data),
-  deleteJob: (id) => API.delete(`/jobs/${id}`)
+  deleteJob: (id) => API.delete(`/jobs/${id}`),
+  getApplied: () => API.get('/jobs/applied'),
 };
 
 export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
+  getSuggestionsAll: (userId, params) => API.get(`/users/suggestions-all/${userId}`, { params }),
   getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
   getJobRecommendations: (userId) => API.get(`/users/job-recommendations/${userId}`),
   getSameSchool: (userId, params) => API.get(`/users/same-school/${userId}`, { params }),
