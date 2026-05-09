@@ -25,7 +25,11 @@ const createUser = (email, password_hash, full_name, headline) => {
 
 const getUser = (email) => {
   return psql.Query(`
-    SELECT * FROM "users" WHERE email = $1 LIMIT 1;
+    SELECT u.*, p.full_name, p.headline
+    FROM "users" u
+    LEFT JOIN "profiles" p ON u.id = p.user_id
+    WHERE u.email = $1 
+    LIMIT 1;
   `, [email]);
 }
 

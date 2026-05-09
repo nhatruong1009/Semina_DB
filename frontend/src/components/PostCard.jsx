@@ -35,9 +35,18 @@ const PostCard = ({ post, onUpdate }) => {
     }
   };
 
+  const [showCopied, setShowCopied] = React.useState(false);
+
   const handleShare = async () => {
     try {
       await postAPI.sharePost(post.id);
+      
+      const shareUrl = `${window.location.origin}/post/${post.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+      
       onUpdate();
     } catch (err) {
       console.error('Error sharing post:', err);
@@ -138,6 +147,7 @@ const PostCard = ({ post, onUpdate }) => {
 
   return (
     <div className="post-card">
+      {showCopied && <div className="copied-badge">Link copied to clipboard!</div>}
       <div className="post-header">
         <img 
           src={post.author?.profileImage} 
@@ -178,7 +188,7 @@ const PostCard = ({ post, onUpdate }) => {
           <span className="icon">💬</span>
           <span className="label">Comment</span>
         </button>
-        <button onClick={handleShare} className="action-btn">
+        <button onClick={handleShare} className="action-btn share-btn">
           <span className="icon grey">🔗</span>
           <span className="label">Share</span>
         </button>

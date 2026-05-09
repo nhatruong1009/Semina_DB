@@ -32,7 +32,14 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
           </button>
         </div>
         <div className="navbar-right">
-          <span className="user-name">{user?.name}</span>
+          <div className="navbar-user">
+            <img 
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'User')}&background=0a66c2&color=fff`} 
+              alt="me" 
+              className="nav-profile-img" 
+            />
+            <span className="user-name">{user?.full_name || 'User'}</span>
+          </div>
           <button onClick={logout} className="logout-btn">
             Logout
           </button>
