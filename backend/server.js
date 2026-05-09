@@ -7,6 +7,7 @@ const usersRouter = require('./routes/users');
 const postsRouter = require('./routes/posts');
 const jobsRouter = require('./routes/jobs');
 const authRouter = require('./routes/auth');
+const uploadsRouter = require('./routes/uploads');
 const { startDataCollectors } = require('./datadriven/data_collector');
 const db_conn = require('./init_db')
 
@@ -22,6 +23,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/jobs', jobsRouter);
+app.use('/api/upload', uploadsRouter);
+app.use('/uploads', express.static('uploads'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'LinkedIn Clone API' });

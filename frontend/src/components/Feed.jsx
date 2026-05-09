@@ -11,14 +11,18 @@ const Feed = () => {
   const { user } = useContext(AuthContext);
 
   const fetchFeed = async () => {
-    setLoading(true);
+    // Only show loading state if we don't have posts yet (initial load)
+    const isInitialLoad = posts.length === 0;
+    if (isInitialLoad) setLoading(true);
+    
     try {
       const res = await postAPI.getFeed();
       setPosts(res.data);
     } catch (err) {
       console.error('Error fetching feed:', err);
     }
-    setLoading(false);
+    
+    if (isInitialLoad) setLoading(false);
   };
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { postAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import '../styles/PostCreate.css';
@@ -10,7 +10,9 @@ const PostCreate = ({ onPostCreated }) => {
   const [mediaUrl, setMediaUrl] = useState('');
   const [mediaType, setMediaType] = useState('image');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { user } = useContext(AuthContext);
+  const fileInputRef = useRef(null);
 
   const handlePostSubmit = async (e) => {
     e.preventDefault();
@@ -37,11 +39,33 @@ const PostCreate = ({ onPostCreated }) => {
     setLoading(false);
   };
 
-  const addMedia = () => {
+  const addMediaUrl = () => {
     if (!mediaUrl.trim()) return;
-    setMedia([...media, { type: mediaType, url: mediaUrl }]);
+    setMedia([...media, { type: mediaType, url: mediaUrl.trim() }]);
     setMediaUrl('');
     setShowMediaInput(false);
+  };
+
+  const handleFileClick = (type) => {
+    setMediaType(type);
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const res = await postAPI.uploadFile(file);
+      setMedia([...media, { type: res.data.type, url: res.data.url }]);
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      alert('Failed to upload file. Please try again.');
+    }
+    setUploading(false);
+    // Reset file input
+    e.target.value = '';
   };
 
   const removeMedia = (index) => {
@@ -51,7 +75,11 @@ const PostCreate = ({ onPostCreated }) => {
   return (
     <div className="post-create">
       <div className="post-create-main">
-        <img src={user?.profileImage} alt="profile" className="profile-image" />
+        <img 
+          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'User')}&background=0a66c2&color=fff`} 
+          alt="profile" 
+          className="profile-image" 
+        />
         <div className="post-form-container">
           <textarea
             placeholder="Share your thoughts..."
@@ -71,6 +99,7 @@ const PostCreate = ({ onPostCreated }) => {
                   <button type="button" className="remove-media-btn" onClick={() => removeMedia(index)}>×</button>
                 </div>
               ))}
+              {uploading && <div className="media-preview-item uploading-placeholder">Uploading...</div>}
             </div>
           )}
 
@@ -84,11 +113,19 @@ const PostCreate = ({ onPostCreated }) => {
                 autoFocus
               />
               <div className="media-input-actions">
-                <button type="button" onClick={addMedia}>Add</button>
+                <button type="button" onClick={addMediaUrl}>Add</button>
                 <button type="button" className="cancel-btn" onClick={() => setShowMediaInput(false)}>Cancel</button>
               </div>
             </div>
           )}
+
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            onChange={handleFileChange}
+            accept="image/*,video/*"
+          />
 
           <div className="post-create-footer">
             <div className="media-buttons">
@@ -106,15 +143,19 @@ const PostCreate = ({ onPostCreated }) => {
               >
                 <span className="icon">📹</span> Video
               </button>
-              <button type="button" className="media-btn event-btn">
-                <span className="icon">📅</span> Event
+              <button 
+                type="button" 
+                className="media-btn upload-btn"
+                onClick={() => handleFileClick('all')}
+              >
+                <span className="icon">📁</span> Upload
               </button>
             </div>
             <button 
               type="submit" 
               className="submit-post-btn"
               onClick={handlePostSubmit}
-              disabled={loading || (!content.trim() && media.length === 0)}
+              disabled={loading || uploading || (!content.trim() && media.length === 0)}
             >
               {loading ? 'Posting...' : 'Post'}
             </button>

@@ -32,7 +32,14 @@ export const postAPI = {
   likePost: (id) => API.post(`/posts/${id}/like`),
   unlikePost: (id) => API.post(`/posts/${id}/unlike`),
   commentPost: (id, text) => API.post(`/posts/${id}/comment`, { text }),
-  sharePost: (id) => API.post(`/posts/${id}/share`)
+  sharePost: (id) => API.post(`/posts/${id}/share`),
+  uploadFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return API.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 
 export const jobAPI = {
