@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../query/user');
 const { publishUserCreated } = require('../datadriven/data_collector');
 
+const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL;
+
 router.post('/register', async (req, res) => {
   // TODO: Persist a new user record in the database.
   // - Validate email, password, and name.
@@ -30,11 +32,20 @@ router.post('/register', async (req, res) => {
     });
 
     const token = jwt.sign(
-      { id: profile.user_id, email },
+      { id: profile.user_id, 
+        email: email,
+        is_superadmin: email === SUPERADMIN_EMAIL
+      },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    const userPayload = { ...profile, id: profile.user_id, created_at: undefined, password_hash: undefined };
+    const userPayload = { 
+      ...profile, 
+      id: profile.user_id, 
+      created_at: undefined, 
+      password_hash: undefined, 
+      is_superadmin: email === SUPERADMIN_EMAIL
+    };
     const refreshToken = uuidv4(); // token to refesh jwt
     await User.storeRefreshToken(profile.user_id, refreshToken);
     return res.status(201).json({ token, refreshToken, user: userPayload });
@@ -65,13 +76,24 @@ router.post('/login', async (req, res) => {
     }
     const userId = user.id || user.user_id;
     const token = jwt.sign(
-      { id: userId, email: user.email }, 
+      { id: userId, 
+        email: user.email,
+        is_superadmin: user.email === SUPERADMIN_EMAIL
+      }, 
       process.env.JWT_SECRET, 
       { expiresIn: '1h' }
     );
     const refreshToken = uuidv4(); // token to refesh jwt
     await User.storeRefreshToken(userId, refreshToken);
-    const userPayload = { ...user, id: userId, created_at: undefined, password_hash: undefined };
+    console.log(user.is_staff)
+    const userPayload = { 
+      ...user, 
+      id: userId, 
+      created_at: undefined, 
+      password_hash: undefined, 
+      is_superadmin: user.email === SUPERADMIN_EMAIL,
+      is_staff: user.is_staff > 0,
+    };
     res.json({ token, refreshToken, user: userPayload });
 
   } catch (err) {

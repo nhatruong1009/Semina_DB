@@ -175,3 +175,34 @@
   color: #888;
   margin: 0;
 }
+
+/* Location & Currency dropdowns */
+.job-form select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.job-form select:focus {
+  outline: none;
+  border-color: #0077b5;
+}
+
+/* Salary range container */
+.salary-range {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.salary-range input {
+  flex: 1;
+}
+
+.salary-range select {
+  flex: 0.5;
+}

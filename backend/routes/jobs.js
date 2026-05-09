@@ -1,27 +1,55 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const Jobs = require('../query/jobs')
 
-router.post('/create', [verifyToken], (req, res) => {
-  // TODO: Persist a new job posting in the database.
-  // - Use req.userId as the posting user.
-  // - Store title, company, location, description, salary, and createdAt.
-  // - Return the created job record.
-  res.status(501).json({ message: 'Job creation should be handled by the data layer and return the new job.' });
+router.post('/create', [verifyToken], async (req, res) => {
+  try {
+    const { title, company_id, location, description, salary_range } = req.body;
+    console.log(title, company_id, location, description, salary_range);
+    const createdAt = new Date();
+    const records = await Jobs.Create(company_id, title, salary_range, createdAt)    
+    if (!records || records.rowCount === 0) {
+      console.log("Job creation failed");
+      return res.status(500).json({ success: false, error: "Job creation failed" });
+    }
+    res.json(records.rows[0]);
+  } catch (err) {
+    console.error('Error creating job:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.get('/', [verifyToken], (req, res) => {
-  // TODO: Query all jobs from the database and include author info.
-  // - Join with user data to return author details per job.
-  res.status(501).json({ message: 'Job list retrieval should be handled by the data layer and return jobs with author metadata.' });
+// Get all jobs with company and author info
+router.get('/', [verifyToken], async (req, res) => {
+  try {
+    const result = await Jobs.Get();
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post('/:id/apply', [verifyToken], (req, res) => {
-  // TODO: Add the current user as an applicant for the specified job.
-  // - Validate that the job exists.
-  // - Update the job application list in the database.
-  // - Return the updated job or an appropriate error if not found.
-  res.status(501).json({ message: 'Job application should be handled by the data layer and return the updated job.' });
+// Apply to a job
+router.post('/:id/apply', [verifyToken], async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.userId;
+
+    // Insert application (unique constraint prevents duplicates)
+    const records = await Jobs.Apply(jobId, userId)
+
+    if (!records || records.rowCount === 0) {
+      console.log("Job apply failed");
+      return res.status(500).json({ success: false, error: "Job apply failed" });
+    }
+
+    res.json(records.rows[0]);
+  } catch (err) {
+    console.error('Error applying to job:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
