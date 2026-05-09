@@ -149,9 +149,8 @@ const Network = () => {
         <div className="users-grid">
           {users.map((u) => (
             <div key={u.id} className="user-card">
-              <img src={u.profileImage} alt={u.name} className="user-image" />
-              <h4>{u.name}</h4>
-              <p className="title">{u.title}</p>
+              <h4>{u.full_name || u.name}</h4>
+              <p className="title">{u.headline || u.title}</p>
               <p className="bio">{u.bio}</p>
               <button
                 onClick={() => followingIds.includes(u.id) ? handleUnfollow(u.id) : handleFollow(u.id)}
