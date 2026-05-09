@@ -54,6 +54,59 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
     { userId, exclude, limit: parseInt(limit) }
   );
 
+const getHighlyConnectedUsers = (userId, { limit = 10, exclude = [] } = {}) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})
+     MATCH (suggest:User)
+     WHERE suggest.user_id <> $userId
+       AND NOT suggest.user_id IN $exclude
+       AND NOT (u)-[:CONNECTS]->(suggest)
+     WITH suggest, COUNT { (suggest)-[:CONNECTS]-() } AS connections
+     ORDER BY connections DESC
+     LIMIT $poolSize
+     WITH collect(suggest) AS pool
+     UNWIND pool AS candidate
+     WITH candidate, rand() AS r
+     ORDER BY r
+     LIMIT $limit
+     RETURN candidate.name AS name, candidate.user_id AS user_id`,
+    { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) * 2 }
+  );
+
+const DEFAULT_RATIO = { friend: 0.4, same_school: 0.2, same_company: 0.2, popular: 0.2 };
+
+const getSuggestionsAll = async (userId, { limit = 20, ratio = DEFAULT_RATIO } = {}) => {
+  const seen = new Set([String(userId)]);
+  const results = [];
+
+  const sources = [
+    { key: 'friend',       fn: getSuggestions,         nameField: 'suggested_user' },
+    { key: 'same_school',  fn: getSameSchool,           nameField: 'name' },
+    { key: 'same_company', fn: getSameCompany,          nameField: 'name' },
+    { key: 'popular',      fn: getHighlyConnectedUsers, nameField: 'name' },
+  ];
+
+  for (const { key, fn, nameField } of sources) {
+    const quota = Math.round(limit * (ratio[key] ?? 0));
+    if (quota <= 0) continue;
+
+    const rows = await fn(userId, { limit: quota * 2, exclude: [...seen] });
+
+    let taken = 0;
+    for (const r of rows) {
+      if (taken >= quota) break;
+      const obj = r.toObject();
+      const uid = String(obj.user_id);
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      results.push({ user_id: uid, name: obj[nameField], relation: key });
+      taken++;
+    }
+  }
+
+  return results;
+};
+
 const createConnect = (userId1, userId2) =>
   neo4j.Query(
     `MATCH (u1:User {user_id: $userId1}), (u2:User {user_id: $userId2})
@@ -148,6 +201,8 @@ const getFollowing = (userId) =>
 module.exports = {
   createUser,
   getSuggestions,
+  getSuggestionsAll,
+  getHighlyConnectedUsers,
   getMutualConnections,
   getJobRecommendations,
   getSameSchool,
