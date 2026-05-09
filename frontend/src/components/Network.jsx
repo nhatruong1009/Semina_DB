@@ -6,12 +6,17 @@ import '../styles/Network.css';
 const Network = () => {
   const [users, setUsers] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [sameSchool, setSameSchool] = useState([]);
-  const [sameCompany, setSameCompany] = useState([]);
   const [mutuals, setMutuals] = useState({});
   const { user } = useContext(AuthContext);
   const [followingIds, setFollowingIds] = useState(user?.following || []);
   const [connectedIds, setConnectedIds] = useState([]);
+
+  const RELATION_LABEL = {
+    friend: 'Mutual friend',
+    same_school: 'Same school',
+    same_company: 'Same company',
+    popular: 'Popular',
+  };
 
   useEffect(() => {
     userAPI.getAllUsers()
@@ -19,31 +24,24 @@ const Network = () => {
       .catch(err => console.error('Error fetching users:', err));
 
     if (user?.id) {
-      networkAPI.getSuggestions(String(user.id))
+      networkAPI.getSuggestionsAll(String(user.id))
         .then(res => setSuggestions(res.data))
-        .catch(() => {});
-
-      networkAPI.getSameSchool(String(user.id))
-        .then(res => setSameSchool(res.data))
-        .catch(() => {});
-
-      networkAPI.getSameCompany(String(user.id))
-        .then(res => setSameCompany(res.data))
         .catch(() => {});
     }
   }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id || suggestions.length === 0) return;
-    suggestions.forEach(s => {
-      networkAPI.getMutual(String(user.id), String(s.user_id))
-        .then(res => {
-          if (res.data.length > 0) {
-            setMutuals(prev => ({ ...prev, [s.user_id]: res.data }));
-          }
-        })
-        .catch(() => {});
-    });
+    suggestions
+      .filter(s => s.relation === 'friend')
+      .forEach(s => {
+        networkAPI.getMutual(String(user.id), String(s.user_id))
+          .then(res => {
+            if (res.data.length > 0)
+              setMutuals(prev => ({ ...prev, [s.user_id]: res.data }));
+          })
+          .catch(() => {});
+      });
   }, [suggestions]);
 
   const handleFollow = async (userId) => {
@@ -83,54 +81,13 @@ const Network = () => {
           <div className="users-grid">
             {suggestions.map((s) => (
               <div key={s.user_id} className="user-card">
-                <h4>{s.suggested_user}</h4>
+                <h4>{s.name}</h4>
+                <p className="title">{RELATION_LABEL[s.relation] || s.relation}</p>
                 {mutuals[s.user_id]?.length > 0 && (
                   <p className="mutual-count">
                     {mutuals[s.user_id].length} mutual connection{mutuals[s.user_id].length > 1 ? 's' : ''}
                   </p>
                 )}
-                <button
-                  onClick={() => handleConnect(s.user_id)}
-                  disabled={connectedIds.includes(s.user_id)}
-                  className="follow"
-                >
-                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {sameSchool.length > 0 && (
-        <section>
-          <h3>Same School</h3>
-          <div className="users-grid">
-            {sameSchool.map((s) => (
-              <div key={s.user_id} className="user-card">
-                <h4>{s.name}</h4>
-                <p className="title">{s.school}</p>
-                <button
-                  onClick={() => handleConnect(s.user_id)}
-                  disabled={connectedIds.includes(s.user_id)}
-                  className="follow"
-                >
-                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {sameCompany.length > 0 && (
-        <section>
-          <h3>Same Company</h3>
-          <div className="users-grid">
-            {sameCompany.map((s) => (
-              <div key={s.user_id} className="user-card">
-                <h4>{s.name}</h4>
-                <p className="title">{s.company}</p>
                 <button
                   onClick={() => handleConnect(s.user_id)}
                   disabled={connectedIds.includes(s.user_id)}

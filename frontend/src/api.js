@@ -51,6 +51,7 @@ export const jobAPI = {
 
 export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
+  getSuggestionsAll: (userId, params) => API.get(`/users/suggestions-all/${userId}`, { params }),
   getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
   getJobRecommendations: (userId) => API.get(`/users/job-recommendations/${userId}`),
   getSameSchool: (userId, params) => API.get(`/users/same-school/${userId}`, { params }),
