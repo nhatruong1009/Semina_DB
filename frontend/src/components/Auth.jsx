@@ -16,10 +16,10 @@ const Auth = ({ onSwitch }) => {
     try {
       if (isLogin) {
         const res = await authAPI.login(email, password);
-        login(res.data.user, res.data.token);
+        login(res.data.user, res.data.token, res.data.refreshToken);
       } else {
         const res = await authAPI.register(email, password, name);
-        login(res.data.user, res.data.token);
+        login(res.data.user, res.data.token, res.data.refreshToken);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'An error occurred');

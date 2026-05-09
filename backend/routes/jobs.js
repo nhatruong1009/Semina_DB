@@ -10,7 +10,7 @@ router.post('/create', [verifyToken], (req, res) => {
   res.status(501).json({ message: 'Job creation should be handled by the data layer and return the new job.' });
 });
 
-router.get('/', (req, res) => {
+router.get('/', [verifyToken], (req, res) => {
   // TODO: Query all jobs from the database and include author info.
   // - Join with user data to return author details per job.
   res.status(501).json({ message: 'Job list retrieval should be handled by the data layer and return jobs with author metadata.' });
