@@ -45,10 +45,16 @@ export const postAPI = {
 export const jobAPI = {
   createJob: (title, company_id, location, description, salary_range) =>
     API.post('/jobs/create', { title, company_id, location, description, salary_range }),
+  updateJob: (id, title, location, description, salary_range) =>
+    API.put(`/jobs/${id}`, { title, location, description, salary_range }),
+  deleteJob: (id) => API.delete(`/jobs/${id}`),
   getJobs: () => API.get('/jobs'),
+  getMyJobs: () => API.get('/jobs/my-jobs'),
+  getJobApplicants: (id) => API.get(`/jobs/${id}/applicants`),
   applyJob: (id) => API.post(`/jobs/${id}/apply`),
   getApplied: () => API.get('/jobs/applied'),
 };
+
 
 export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),

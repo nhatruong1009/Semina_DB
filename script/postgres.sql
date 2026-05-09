@@ -31,11 +31,14 @@ CREATE TABLE jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
-    salary_range VARCHAR(100),
+    location VARCHAR(255),
+    description TEXT,
+    salary_range JSONB,
     status VARCHAR(50) DEFAULT 'OPEN', -- OPEN, CLOSED
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE job_applications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

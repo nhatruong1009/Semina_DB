@@ -29,9 +29,10 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             className={currentPage === 'jobs' ? 'active' : ''}
             onClick={() => setCurrentPage('jobs')}
           >
-            Jobs
+            Manage Jobs
           </button>
           }
+
           {user?.is_superadmin === true &&
           <button onClick={() => setCurrentPage('admin-companies')}>Admin Companies</button>
           }
