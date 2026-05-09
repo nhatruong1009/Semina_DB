@@ -131,6 +131,20 @@ const getFeedByNetwork = (userId) =>
     { userId: String(userId) }
   );
 
+const getFollowers = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})<-[:FOLLOWS]-(follower:User)
+     RETURN follower.user_id AS user_id, follower.name AS name`,
+    { userId: String(userId) }
+  );
+
+const getFollowing = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:FOLLOWS]->(followed:User)
+     RETURN followed.user_id AS user_id, followed.name AS name`,
+    { userId: String(userId) }
+  );
+
 module.exports = {
   createUser,
   getSuggestions,
@@ -148,4 +162,6 @@ module.exports = {
   sharePost,
   getPostInteractions,
   getFeedByNetwork,
+  getFollowers,
+  getFollowing,
 };

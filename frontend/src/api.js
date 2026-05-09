@@ -53,6 +53,8 @@ export const networkAPI = {
   unfollow: (followeeId) => API.post('/users/unfollow', { followeeId }),
   getPostInteractions: (postId) => API.get(`/posts/${postId}/interactions`),
   getNetworkFeed: () => API.get('/posts/feed/network'),
+  getFollowers: (userId) => API.get(`/users/followers/${userId}`),
+  getFollowing: (userId) => API.get(`/users/following/${userId}`),
 };
 
 let isRefreshing = false;

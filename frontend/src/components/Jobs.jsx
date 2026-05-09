@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { jobAPI } from '../api';
+import React, { useState, useEffect, useContext } from 'react';
+import { jobAPI, networkAPI } from '../api';
+import { AuthContext } from '../AuthContext';
 import '../styles/Jobs.css';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -12,6 +14,7 @@ const Jobs = () => {
     description: '',
     salary: ''
   });
+  const { user } = useContext(AuthContext);
 
   const fetchJobs = async () => {
     try {
@@ -25,6 +28,13 @@ const Jobs = () => {
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    networkAPI.getJobRecommendations(String(user.id))
+      .then(res => setRecommendations(res.data))
+      .catch(() => {});
+  }, [user?.id]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -59,6 +69,7 @@ const Jobs = () => {
   };
 
   return (
+    <div className="jobs-page">
     <div className="jobs-container">
       <h2>Jobs</h2>
       <button onClick={() => setShowForm(!showForm)} className="post-job-btn">
@@ -91,6 +102,22 @@ const Jobs = () => {
           </div>
         ))}
       </div>
+    </div>
+
+    {recommendations.length > 0 && (
+      <div className="jobs-recommendations">
+        <h3>Recommended for You</h3>
+        <div className="rec-list">
+          {recommendations.map((rec, i) => (
+            <div key={i} className="rec-card">
+              <h4>{rec.job}</h4>
+              {rec.salary && <p className="rec-salary">{rec.salary}</p>}
+              <p className="rec-skills">{rec.matching_skills} matching skill{rec.matching_skills !== 1 ? 's' : ''}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
   );
 };

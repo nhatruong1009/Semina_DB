@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { postAPI } from '../api';
+import { postAPI, networkAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import PostCard from './PostCard';
 import PostCreate from './PostCreate';
@@ -8,12 +8,15 @@ import '../styles/Feed.css';
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [feedMode, setFeedMode] = useState('all');
   const { user } = useContext(AuthContext);
 
   const fetchFeed = async () => {
     setLoading(true);
     try {
-      const res = await postAPI.getFeed();
+      const res = feedMode === 'network'
+        ? await networkAPI.getNetworkFeed()
+        : await postAPI.getFeed();
       setPosts(res.data);
     } catch (err) {
       console.error('Error fetching feed:', err);
@@ -23,13 +26,29 @@ const Feed = () => {
 
   useEffect(() => {
     fetchFeed();
-  }, []);
+  }, [feedMode]);
 
   return (
     <div className="feed-container">
+      <div className="feed-toggle">
+        <button
+          className={feedMode === 'all' ? 'active' : ''}
+          onClick={() => setFeedMode('all')}
+        >
+          All Posts
+        </button>
+        <button
+          className={feedMode === 'network' ? 'active' : ''}
+          onClick={() => setFeedMode('network')}
+        >
+          Network Feed
+        </button>
+      </div>
       <PostCreate onPostCreated={fetchFeed} />
       {loading ? (
         <p>Loading...</p>
+      ) : posts.length === 0 && feedMode === 'network' ? (
+        <p className="empty-feed">No posts from your network yet. Follow or connect with people first.</p>
       ) : (
         <div className="posts-list">
           {posts.map((post) => (
