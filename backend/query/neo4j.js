@@ -14,7 +14,7 @@ const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
      AND NOT (u)-[:CONNECTS]->(suggest)
      AND NOT suggest.user_id IN $exclude
      RETURN suggest.name AS suggested_user, suggest.user_id AS user_id
-     LIMIT $limit`,
+     LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
 
@@ -40,7 +40,7 @@ const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
      RETURN other.name AS name, other.user_id AS user_id, school.name AS school
-     LIMIT $limit`,
+     LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
 
@@ -50,7 +50,7 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
      RETURN other.name AS name, other.user_id AS user_id, company.name AS company
-     LIMIT $limit`,
+     LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
 

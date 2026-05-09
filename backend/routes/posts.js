@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { redisMiddleware } = require('../middleware/user');
 const PostQuery = require('../query/post');
+const { publishPostEvent, POSTS_EVENT_TYPE } = require('../datadriven/data_collector');
 
 /**
  * Create a new post
@@ -11,6 +12,7 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const { content, image } = req.body;
         const result = await PostQuery.SaveContent(req.userId, content, image);
+        publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);
@@ -36,6 +38,7 @@ router.get('/feed', [verifyToken], async (req, res) => {
 router.post('/:id/like', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const result = await PostQuery.LikePost(req.params.id, req.userId);
+        publishPostEvent(POSTS_EVENT_TYPE.LIKE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/like:', err);
@@ -49,6 +52,7 @@ router.post('/:id/like', [verifyToken, redisMiddleware], async (req, res) => {
 router.post('/:id/unlike', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const result = await PostQuery.UnlikePost(req.params.id, req.userId);
+        publishPostEvent(POSTS_EVENT_TYPE.UNLIKE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/unlike:', err);
@@ -63,6 +67,12 @@ router.post('/:id/comment', [verifyToken], async (req, res) => {
     try {
         const { text } = req.body;
         const result = await PostQuery.CommentPost(req.params.id, req.userId, text);
+        const lastComment = result.comments[result.comments.length - 1];
+        publishPostEvent(POSTS_EVENT_TYPE.COMMENT_ADD, {
+            user_id: req.userId,
+            post_id: req.params.id,
+            comment_id: lastComment.id,
+        }).catch(console.error);
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/comment:', err);
@@ -76,6 +86,7 @@ router.post('/:id/comment', [verifyToken], async (req, res) => {
 router.post('/:id/share', [verifyToken], async (req, res) => {
     try {
         const result = await PostQuery.SharePost(req.params.id, req.userId);
+        publishPostEvent(POSTS_EVENT_TYPE.SHARE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/share:', err);
