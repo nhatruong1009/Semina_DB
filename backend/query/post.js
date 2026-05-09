@@ -19,7 +19,7 @@ const transformPostInternal = async (post) => {
         author: {
             ...p.author,
             title: p.author.headline || '',
-            profileImage: p.author.profileImage || 'https://via.placeholder.com/150'
+            profileImage: p.author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.author.name || 'User')}&background=random`
         },
         content: p.content,
         images: Array.isArray(p.content?.media) 
@@ -60,13 +60,12 @@ const SaveContent = async (userId, text, media) => {
         mediaArray = [{ type: 'image', url: media }];
     }
 
-    // 2. Prepare MongoDB document
     const postData = {
         author: {
             id: profile.id.toString(),
             name: profile.full_name,
             headline: profile.headline || 'Member',
-            profileImage: profile.profile_image || 'https://via.placeholder.com/150'
+            profileImage: profile.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=0a66c2&color=fff`
         },
         content: {
             text: text,
@@ -77,9 +76,16 @@ const SaveContent = async (userId, text, media) => {
         visibility: 'public'
     };
 
-    const newPost = new mongosh.Post(postData);
-    const savedPost = await newPost.save();
-    return await transformPostInternal(savedPost);
+    try {
+        console.log('DEBUG: Attempting to save post with data:', JSON.stringify(postData, null, 2));
+        const newPost = new mongosh.Post(postData);
+        const savedPost = await newPost.save();
+        console.log('DEBUG: Post saved successfully with ID:', savedPost._id);
+        return await transformPostInternal(savedPost);
+    } catch (err) {
+      console.error('CRITICAL ERROR: Failed to save post to MongoDB:', err);
+      throw err;
+    }
 }
 
 /**
@@ -87,7 +93,17 @@ const SaveContent = async (userId, text, media) => {
  */
 const GetFeed = async () => {
     const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(20);
-    return await Promise.all(posts.map(p => transformPostInternal(p)));
+    const transformedPosts = [];
+    for (const p of posts) {
+        try {
+            const transformed = await transformPostInternal(p);
+            transformedPosts.push(transformed);
+        } catch (err) {
+            console.error(`ERROR: Failed to transform post ${p._id}:`, err);
+            // Skip broken posts instead of failing the whole feed
+        }
+    }
+    return transformedPosts;
 }
 
 /**
