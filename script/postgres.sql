@@ -49,6 +49,24 @@ CREATE TABLE job_applications (
     CONSTRAINT unique_job_application UNIQUE (job_id, user_id) 
 );
 
+-- ta cần tài khoản để kiểm soát các "account" công ti
+CREATE TABLE company_users  (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    role VARCHAR(50) DEFAULT 'RECRUITER', -- ADMIN, RECRUITER, etc.
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    active BOOLEAN DEFAULT true,
+    CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT unique_company_admin UNIQUE (company_id, user_id)
+);
+
+-- Speed up lookups of all admins for a company
+CREATE INDEX idx_company_admins_company_id ON company_users (company_id);
+-- Speed up lookups of all companies managed by a user
+CREATE INDEX idx_company_admins_user_id ON company_users (user_id);
+
 
 -- Tìm user theo email cực nhanh (phục vụ lúc đăng nhập)
 CREATE INDEX idx_users_email ON users(email);

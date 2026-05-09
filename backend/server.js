@@ -9,6 +9,8 @@ const authRouter = require('./routes/auth');
 const uploadsRouter = require('./routes/uploads');
 const { startDataCollectors } = require('./datadriven/data_collector');
 const db_conn = require('./init_db')
+const adminCompaniesRouter = require('./routes/adminCompanies');
+const companiesRouter = require('./routes/company')
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/upload', uploadsRouter);
+app.use('/api/admin', adminCompaniesRouter);
+app.use('/api/companies', companiesRouter);
 app.use('/uploads', express.static('uploads'));
 
 app.get('/', (req, res) => {

@@ -24,12 +24,18 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
           >
             Network
           </button>
+          {user?.is_staff === true &&
           <button
             className={currentPage === 'jobs' ? 'active' : ''}
             onClick={() => setCurrentPage('jobs')}
           >
             Jobs
           </button>
+          }
+          {user?.is_superadmin === true &&
+          <button onClick={() => setCurrentPage('admin-companies')}>Admin Companies</button>
+          }
+
         </div>
         <div className="navbar-right">
           <div className="navbar-user">

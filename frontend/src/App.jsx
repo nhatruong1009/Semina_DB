@@ -5,6 +5,7 @@ import Feed from './components/Feed';
 import Network from './components/Network';
 import Jobs from './components/Jobs';
 import Navbar from './components/Navbar';
+import AdminCompany from './components/AdminCompany';
 import './App.css';
 
 function App() {
@@ -22,6 +23,8 @@ function App() {
         {currentPage === 'feed' && <Feed />}
         {currentPage === 'network' && <Network />}
         {currentPage === 'jobs' && <Jobs />}
+        {currentPage === 'admin-companies' && <AdminCompany />}
+
       </div>
     </div>
   );

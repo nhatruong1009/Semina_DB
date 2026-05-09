@@ -43,8 +43,8 @@ export const postAPI = {
 };
 
 export const jobAPI = {
-  createJob: (title, company, location, description, salary) =>
-    API.post('/jobs/create', { title, company, location, description, salary }),
+  createJob: (title, company_id, location, description, salary_range) =>
+    API.post('/jobs/create', { title, company_id, location, description, salary_range }),
   getJobs: () => API.get('/jobs'),
   applyJob: (id) => API.post(`/jobs/${id}/apply`)
 };
@@ -63,6 +63,21 @@ export const networkAPI = {
   getFollowers: (userId) => API.get(`/users/followers/${userId}`),
   getFollowing: (userId) => API.get(`/users/following/${userId}`),
 };
+
+export const companyAPI = {
+  getCompanies: () => API.get('/companies'),
+  getMyCompanies: () => API.get('/companies/my'),
+  addUser: (companyId, userId, role) => API.post(`/companies/${companyId}/add-user`, { userId, role }),
+  getCompanyUsers: (companyId) => API.get(`/companies/${companyId}/users`),
+  deactivateUser: (companyId, userId) => API.delete(`/companies/${companyId}/users/${userId}`)
+};
+
+export const adminCompanyAPI = {
+  createCompanyWithAdmin: (name, industry, description, email) => API.post('/admin/companies/create', { name, industry, description, email }),
+  getAllCompanies: () => API.get('/admin/companies'),
+};
+
+
 
 let isRefreshing = false;
 let refreshSubscribers = [];

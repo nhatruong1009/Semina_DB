@@ -25,13 +25,20 @@ const createUser = (email, password_hash, full_name, headline) => {
 
 const getUser = (email) => {
   return psql.Query(`
-    SELECT u.*, p.full_name, p.headline
+    SELECT u.*, p.full_name,  p.headline,
+           COALESCE(
+             (SELECT COUNT(*) 
+              FROM company_users cu 
+              WHERE cu.user_id = u.id 
+                AND cu.active = true), 0
+           ) AS is_staff
     FROM "users" u
     LEFT JOIN "profiles" p ON u.id = p.user_id
     WHERE u.email = $1 
     LIMIT 1;
   `, [email]);
-}
+};
+
 
 const getUserProfileById = (userId) => {
   return psql.Query(`
