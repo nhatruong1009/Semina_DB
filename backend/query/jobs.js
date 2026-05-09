@@ -12,9 +12,23 @@ const Apply = (job_id, user_id) => {
   return psql.Query(
     `INSERT INTO job_applications (job_id, user_id, status, applied_at)
        VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)
-       ON CONFLICT (job_id, user_id) DO NOTHING
+       ON CONFLICT (job_id, user_id) DO UPDATE SET applied_at = EXCLUDED.applied_at
        RETURNING *`,
       [job_id, user_id]
+  );
+}
+
+const GetApplied = (user_id) => {
+  return psql.Query(
+    `SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+            c.name AS company_name,
+            a.status AS application_status, a.applied_at
+     FROM job_applications a
+     JOIN jobs j ON a.job_id = j.id
+     JOIN companies c ON j.company_id = c.id
+     WHERE a.user_id = $1
+     ORDER BY a.applied_at DESC`,
+    [user_id]
   );
 }
 
@@ -35,4 +49,5 @@ module.exports = {
   Create,
   Apply,
   Get,
+  GetApplied,
 }

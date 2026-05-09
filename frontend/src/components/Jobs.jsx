@@ -18,7 +18,9 @@ const Jobs = () => {
     salaryMax: '',
     currency: 'USD'
   });
-  const [myCompanies, setMyCompanies] = useState([])
+  const [myCompanies, setMyCompanies] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [appliedIds, setAppliedIds] = useState(new Set());
   const { user } = useContext(AuthContext);
 
   // fetch company
@@ -41,6 +43,12 @@ const Jobs = () => {
 
   useEffect(() => {
     fetchJobs();
+    jobAPI.getApplied()
+      .then(res => {
+        setAppliedJobs(res.data);
+        setAppliedIds(new Set(res.data.map(j => j.id)));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -57,9 +65,11 @@ const Jobs = () => {
   const handleApply = async (jobId) => {
     try {
       await jobAPI.applyJob(jobId);
-      alert('Applied successfully!');
+      setAppliedIds(prev => new Set([...prev, jobId]));
+      const res = await jobAPI.getApplied();
+      setAppliedJobs(res.data);
     } catch (err) {
-      alert(err.response?.data?.error || 'Apply failed');
+      console.error('Apply failed:', err);
     }
   };
 
@@ -182,14 +192,34 @@ const Jobs = () => {
                 {salary && <p className="salary">{salary}</p>}
                 <p>{job.description}</p>
                 <p className="applicants">{job.applicants_count ?? (job.applications?.length ?? 0)} applicants</p>
-                <button onClick={() => handleApply(job.id)} className="apply-btn">
-                  Apply Now
+                <button
+                  onClick={() => handleApply(job.id)}
+                  className="apply-btn"
+                  disabled={appliedIds.has(job.id)}
+                >
+                  {appliedIds.has(job.id) ? 'Applied' : 'Apply Now'}
                 </button>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Applied Jobs */}
+      {appliedJobs.length > 0 && (
+        <div className="jobs-recommendations">
+          <h3>Jobs You Applied</h3>
+          <div className="rec-list">
+            {appliedJobs.map((job) => (
+              <div key={job.id} className="rec-card">
+                <h4>{job.title}</h4>
+                <p className="company">{job.company_name}</p>
+                <p className="rec-skills">Status: {job.application_status}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recommendations */}
       {recommendations.length > 0 && (
