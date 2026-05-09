@@ -34,7 +34,6 @@ const Network = () => {
 
   const handleFollow = async (userId) => {
     try {
-      await userAPI.follow(userId);
       await networkAPI.follow(String(user.id), String(userId));
       setFollowingIds([...followingIds, userId]);
     } catch (err) {
@@ -44,7 +43,7 @@ const Network = () => {
 
   const handleUnfollow = async (userId) => {
     try {
-      await userAPI.unfollow(userId);
+      await networkAPI.unfollow(String(user.id), String(userId));
       setFollowingIds(followingIds.filter(id => id !== userId));
     } catch (err) {
       console.error('Error unfollowing user:', err);

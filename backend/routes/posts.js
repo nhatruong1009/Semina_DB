@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth');
 const { redisMiddleware } = require('../middleware/user');
 const PostQuery = require('../query/post');
 const { publishPostEvent, POSTS_EVENT_TYPE } = require('../datadriven/data_collector');
+const graphQuery = require('../query/neo4j');
 
 /**
  * Create a new post
@@ -27,6 +28,32 @@ router.get('/feed', [verifyToken], async (req, res) => {
     try {
         const transformedFeed = await PostQuery.GetFeed();
         res.json(transformedFeed);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Get network feed (posts from people user follows/connects)
+ */
+router.get('/feed/network', [verifyToken], async (req, res) => {
+    try {
+        const records = await graphQuery.getFeedByNetwork(String(req.userId));
+        const postIds = records.map(r => r.toObject().post_id);
+        const posts = await PostQuery.GetByIds(postIds);
+        res.json(posts);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Get post interactions (who liked/commented/shared)
+ */
+router.get('/:id/interactions', [verifyToken], async (req, res) => {
+    try {
+        const records = await graphQuery.getPostInteractions(req.params.id);
+        res.json(records.map(r => r.toObject()));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

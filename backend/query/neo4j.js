@@ -101,6 +101,13 @@ const commentPost = (userId, postId, commentId) =>
     { userId: String(userId), postId: String(postId), commentId: String(commentId) }
   );
 
+const unfollow = (followerId, followeeId) =>
+  neo4j.Query(
+    `MATCH (u1:User {user_id: $followerId})-[r:FOLLOWS]->(u2:User {user_id: $followeeId})
+     DELETE r`,
+    { followerId, followeeId }
+  );
+
 const sharePost = (userId, postId) =>
   neo4j.Query(
     `MERGE (u:User {user_id: $userId})
@@ -133,6 +140,7 @@ module.exports = {
   getSameCompany,
   createConnect,
   createFollow,
+  unfollow,
   authored,
   likePost,
   unlikePost,
