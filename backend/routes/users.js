@@ -90,4 +90,22 @@ router.post('/unfollow', [verifyToken], async (req, res) => {
   }
 });
 
+router.get('/followers/:userId', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getFollowers(req.params.userId);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/following/:userId', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getFollowing(req.params.userId);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

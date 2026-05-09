@@ -8,6 +8,7 @@ const Network = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [sameSchool, setSameSchool] = useState([]);
   const [sameCompany, setSameCompany] = useState([]);
+  const [mutuals, setMutuals] = useState({});
   const { user } = useContext(AuthContext);
   const [followingIds, setFollowingIds] = useState(user?.following || []);
   const [connectedIds, setConnectedIds] = useState([]);
@@ -31,6 +32,19 @@ const Network = () => {
         .catch(() => {});
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || suggestions.length === 0) return;
+    suggestions.forEach(s => {
+      networkAPI.getMutual(String(user.id), String(s.user_id))
+        .then(res => {
+          if (res.data.length > 0) {
+            setMutuals(prev => ({ ...prev, [s.user_id]: res.data }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [suggestions]);
 
   const handleFollow = async (userId) => {
     try {
@@ -70,6 +84,11 @@ const Network = () => {
             {suggestions.map((s) => (
               <div key={s.user_id} className="user-card">
                 <h4>{s.suggested_user}</h4>
+                {mutuals[s.user_id]?.length > 0 && (
+                  <p className="mutual-count">
+                    {mutuals[s.user_id].length} mutual connection{mutuals[s.user_id].length > 1 ? 's' : ''}
+                  </p>
+                )}
                 <button
                   onClick={() => handleConnect(s.user_id)}
                   disabled={connectedIds.includes(s.user_id)}

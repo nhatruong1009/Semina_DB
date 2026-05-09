@@ -119,3 +119,59 @@
 .apply-btn:hover {
   background-color: #005a8f;
 }
+
+.jobs-page {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.jobs-page .jobs-container {
+  flex: 1;
+  max-width: unset;
+  margin: 0;
+}
+
+.jobs-recommendations {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.jobs-recommendations h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rec-card {
+  background: white;
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rec-card h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #0077b5;
+}
+
+.rec-salary {
+  font-size: 13px;
+  color: #333;
+  margin: 0 0 4px;
+}
+
+.rec-skills {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}

@@ -3,6 +3,38 @@
   margin: 0 auto;
 }
 
+.feed-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.feed-toggle button {
+  padding: 8px 20px;
+  border: 1px solid #0077b5;
+  border-radius: 20px;
+  background: white;
+  color: #0077b5;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.feed-toggle button.active {
+  background: #0077b5;
+  color: white;
+}
+
+.feed-toggle button:hover:not(.active) {
+  background: #f0f8ff;
+}
+
+.empty-feed {
+  text-align: center;
+  color: #999;
+  margin-top: 40px;
+}
+
 .posts-list {
   display: flex;
   flex-direction: column;
