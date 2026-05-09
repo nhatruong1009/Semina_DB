@@ -11,8 +11,8 @@ const graphQuery = require('../query/neo4j');
  */
 router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
     try {
-        const { content, image } = req.body;
-        const result = await PostQuery.SaveContent(req.userId, content, image);
+        const { content, image, media } = req.body;
+        const result = await PostQuery.SaveContent(req.userId, content, media || image);
         publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
         res.status(201).json(result);
     } catch (err) {

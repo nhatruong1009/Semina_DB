@@ -27,7 +27,7 @@ export const userAPI = {
 };
 
 export const postAPI = {
-  createPost: (content, image) => API.post('/posts/create', { content, image }),
+  createPost: (content, media) => API.post('/posts/create', { content, media }),
   getFeed: () => API.get('/posts/feed'),
   likePost: (id) => API.post(`/posts/${id}/like`),
   unlikePost: (id) => API.post(`/posts/${id}/unlike`),
