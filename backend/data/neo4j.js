@@ -73,14 +73,21 @@ class Neo4j {
 		const session = this.getSession();
 		if (!session) throw new Error("Unable to establish a connection to the database.");
 		try {
-			const result = await session.run(query, params);
+			const result = await session.run(query, this._coerceIntegers(params));
 			return result.records;
-		} catch (err) {
-			console.error("Error running query:", err);
-			return [];
 		} finally {
 			await session.close();
 		}
+	}
+
+	// Neo4j rejects JS floats (e.g. 10.0) for LIMIT/SKIP — coerce all integer-valued
+	// numbers to neo4j.int so the driver sends them as Long, not Double.
+	_coerceIntegers(params) {
+		const out = {};
+		for (const [k, v] of Object.entries(params)) {
+			out[k] = (typeof v === 'number' && Number.isInteger(v)) ? neo4j.int(v) : v;
+		}
+		return out;
 	}
 }
 

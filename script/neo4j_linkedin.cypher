@@ -8,6 +8,7 @@
 // ------------------------------------------------------------
 
 CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.user_id IS UNIQUE;
+CREATE CONSTRAINT post_id IF NOT EXISTS FOR (p:Post) REQUIRE p.post_id IS UNIQUE;
 CREATE CONSTRAINT company_id IF NOT EXISTS FOR (c:Company) REQUIRE c.company_id IS UNIQUE;
 CREATE CONSTRAINT school_id IF NOT EXISTS FOR (s:School) REQUIRE s.school_id IS UNIQUE;
 CREATE CONSTRAINT skill_id IF NOT EXISTS FOR (s:Skill) REQUIRE s.skill_id IS UNIQUE;
@@ -96,6 +97,7 @@ MATCH (j2:Job {job_id: '<UUID_JOB_2>'}), (sk1:Skill {skill_id: '<UUID_SKILL_1>'}
 // ------------------------------------------------------------
 
 CREATE INDEX user_name IF NOT EXISTS FOR (u:User) ON (u.name);
+CREATE INDEX post_id_idx IF NOT EXISTS FOR (p:Post) ON (p.post_id);
 CREATE INDEX job_title IF NOT EXISTS FOR (j:Job) ON (j.title);
 CREATE INDEX skill_name IF NOT EXISTS FOR (s:Skill) ON (s.name);
 

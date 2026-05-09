@@ -80,4 +80,14 @@ router.post('/follow', [verifyToken], async (req, res) => {
   }
 });
 
+router.post('/unfollow', [verifyToken], async (req, res) => {
+  try {
+    const { followeeId } = req.body;
+    await Neo4j.unfollow(String(req.userId), followeeId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -57,6 +57,9 @@ export const networkAPI = {
   getSameCompany: (userId, params) => API.get(`/users/same-company/${userId}`, { params }),
   connect: (userId1, userId2) => API.post('/users/connect', { userId1, userId2 }),
   follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
+  unfollow: (followeeId) => API.post('/users/unfollow', { followeeId }),
+  getPostInteractions: (postId) => API.get(`/posts/${postId}/interactions`),
+  getNetworkFeed: () => API.get('/posts/feed/network'),
 };
 
 let isRefreshing = false;
