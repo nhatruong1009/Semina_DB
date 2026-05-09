@@ -67,19 +67,22 @@ async function produce(topic, message) {
 }
 
 /**
- * Consume messages from a topic
- * @param {string} topic
- * @param {function} handler - callback for each message
+ * Consume messages from one or more topics.
+ * @param {string | Object.<string, function>} topicOrMap - single topic string or map of { topic: handler }
+ * @param {function} [handler] - required when topicOrMap is a string
  */
-async function consume(topic, handler) {
+async function consume(topicOrMap, handler) {
   const c = await getConsumer();
-  await c.subscribe({ topic, fromBeginning: true });
+
+  const topicHandlers = typeof topicOrMap === 'string'
+    ? { [topicOrMap]: handler }
+    : topicOrMap;
+
+  await c.subscribe({ topics: Object.keys(topicHandlers), fromBeginning: true });
 
   await c.run({
-    eachMessage: async ({ topic, partition, message }) => {
+    eachMessage: async ({ topic, message }) => {
       let payload = message.value.toString();
-
-      // check header flag
       if (message.headers?.isObject?.toString() === 'true') {
         try {
           payload = JSON.parse(payload);
@@ -87,8 +90,8 @@ async function consume(topic, handler) {
           console.error("Failed to parse JSON payload:", payload, err);
         }
       }
-
-      handler(payload);
+      const fn = topicHandlers[topic];
+      if (fn) await fn(payload);
     },
   });
 }

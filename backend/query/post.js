@@ -211,9 +211,16 @@ const SharePost = async (postId, userId) => {
     return await transformPostInternal(updatedPost);
 }
 
+const GetByIds = async (postIds) => {
+    if (!postIds.length) return [];
+    const posts = await mongosh.Post.find({ _id: { $in: postIds } });
+    return await Promise.all(posts.map(p => transformPostInternal(p)));
+}
+
 module.exports = {
     SaveContent,
     GetFeed,
+    GetByIds,
     LikePost,
     UnlikePost,
     CommentPost,
