@@ -25,24 +25,23 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             Network
           </button>
           {user?.is_staff === true &&
-          <button
-            className={currentPage === 'jobs' ? 'active' : ''}
-            onClick={() => setCurrentPage('jobs')}
-          >
-            Jobs
-          </button>
+            <button
+              className={currentPage === 'jobs' ? 'active' : ''}
+              onClick={() => setCurrentPage('jobs')}
+            >
+              Jobs
+            </button>
           }
           {user?.is_superadmin === true &&
-          <button onClick={() => setCurrentPage('admin-companies')}>Admin Companies</button>
+            <button onClick={() => setCurrentPage('admin-companies')}>Admin Companies</button>
           }
-
         </div>
         <div className="navbar-right">
           <div className="navbar-user">
-            <img 
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'User')}&background=0a66c2&color=fff`} 
-              alt="me" 
-              className="nav-profile-img" 
+            <img
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'User')}&background=0a66c2&color=fff`}
+              alt="me"
+              className="nav-profile-img"
             />
             <span className="user-name">{user?.full_name || 'User'}</span>
           </div>

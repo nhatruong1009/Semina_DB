@@ -46,7 +46,10 @@ export const jobAPI = {
   createJob: (title, company_id, location, description, salary_range) =>
     API.post('/jobs/create', { title, company_id, location, description, salary_range }),
   getJobs: () => API.get('/jobs'),
-  applyJob: (id) => API.post(`/jobs/${id}/apply`)
+  applyJob: (id) => API.post(`/jobs/${id}/apply`),
+  getApplicants: (id) => API.get(`/jobs/${id}/applicants`),
+  updateJob: (id, data) => API.put(`/jobs/${id}`, data),
+  deleteJob: (id) => API.delete(`/jobs/${id}`)
 };
 
 export const networkAPI = {

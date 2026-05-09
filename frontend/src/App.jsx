@@ -24,7 +24,6 @@ function App() {
         {currentPage === 'network' && <Network />}
         {currentPage === 'jobs' && <Jobs />}
         {currentPage === 'admin-companies' && <AdminCompany />}
-
       </div>
     </div>
   );
