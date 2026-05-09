@@ -32,7 +32,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { id: profile.user_id, email },
       process.env.JWT_SECRET,
-      { expiresIn: '10s' }
+      { expiresIn: '1h' }
     );
     const userPayload = { ...profile, id: profile.user_id, created_at: undefined, password_hash: undefined };
     const refreshToken = uuidv4(); // token to refesh jwt
@@ -67,7 +67,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: userId, email: user.email }, 
       process.env.JWT_SECRET, 
-      { expiresIn: '10s' }
+      { expiresIn: '1h' }
     );
     const refreshToken = uuidv4(); // token to refesh jwt
     await User.storeRefreshToken(userId, refreshToken);
@@ -93,7 +93,7 @@ router.post('/refresh', async (req, res) => {
   const newAccessToken = jwt.sign(
     { id: userId },
     process.env.JWT_SECRET,
-    { expiresIn: '10s' }
+    { expiresIn: '1h' }
   );
 
   // Issue new refresh token
