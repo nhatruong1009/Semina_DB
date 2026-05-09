@@ -6,7 +6,7 @@ import PostCreate from './PostCreate';
 import JobCard from './JobCard';
 import '../styles/Feed.css';
 
-const Feed = () => {
+const Feed = ({ navigateToProfile }) => {
   const [posts, setPosts] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [appliedIds, setAppliedIds] = useState(new Set());
@@ -24,7 +24,9 @@ const Feed = () => {
       const res = feedMode === 'network'
         ? await networkAPI.getNetworkFeed()
         : await postAPI.getFeed();
+      console.log(`[Feed] Fetched ${res.data.length} posts for mode: ${feedMode}`);
       setPosts(res.data);
+
     } catch (err) {
       console.error('Error fetching feed:', err);
     }
@@ -132,7 +134,9 @@ const Feed = () => {
                       key={post.id || index} 
                       post={post} 
                       onUpdate={fetchFeed} 
+                      navigateToProfile={navigateToProfile}
                     />
+
                   );
                 })}
               </div>

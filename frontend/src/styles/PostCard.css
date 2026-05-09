@@ -26,6 +26,20 @@
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+.profile-image.clickable {
+  cursor: pointer;
+}
+
+.author-name.clickable {
+  cursor: pointer;
+}
+
+.author-name.clickable:hover {
+  color: #0a66c2 !important;
+  text-decoration: underline;
+}
+
+
 .post-info {
   flex: 1;
   display: flex;

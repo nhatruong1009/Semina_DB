@@ -92,7 +92,8 @@ const SaveContent = async (userId, text, media) => {
  * Get feed posts
  */
 const GetFeed = async () => {
-    const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(20);
+    const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(50);
+
     const transformedPosts = [];
     for (const p of posts) {
         try {

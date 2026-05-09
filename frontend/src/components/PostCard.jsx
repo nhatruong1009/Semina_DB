@@ -3,7 +3,7 @@ import { postAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import '../styles/PostCard.css';
 
-const PostCard = ({ post, onUpdate }) => {
+const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   const { user } = useContext(AuthContext);
   const [commentText, setCommentText] = React.useState('');
   const [showComments, setShowComments] = React.useState(false);
@@ -152,11 +152,14 @@ const PostCard = ({ post, onUpdate }) => {
         <img 
           src={post.author?.profileImage} 
           alt="author" 
-          className="profile-image" 
+          className="profile-image clickable" 
           onError={(e) => handleImageError(e, 'profile', post.author?.name)}
+          onClick={() => navigateToProfile(post.author_id)}
         />
         <div className="post-info">
-          <h4 className="author-name">{post.author?.name || 'User'}</h4>
+          <h4 className="author-name clickable" onClick={() => navigateToProfile(post.author_id)}>
+            {post.author?.name || 'User'}
+          </h4>
           <p className="author-headline">{post.author?.headline || post.author?.title || ''}</p>
           <p className="post-time">{formatDate(post.createdAt || post.created_at)}</p>
         </div>

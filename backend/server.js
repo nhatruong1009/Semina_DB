@@ -12,6 +12,8 @@ const db_conn = require('./init_db')
 const adminCompaniesRouter = require('./routes/adminCompanies');
 const companiesRouter = require('./routes/company')
 
+const profileRouter = require('./routes/profile');
+
 const app = express();
 
 // Middleware
@@ -27,7 +29,9 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/upload', uploadsRouter);
 app.use('/api/admin', adminCompaniesRouter);
 app.use('/api/companies', companiesRouter);
+app.use('/api/profiles', profileRouter);
 app.use('/uploads', express.static('uploads'));
+
 
 app.get('/', (req, res) => {
   res.json({ message: 'LinkedIn Clone API' });

@@ -127,4 +127,30 @@ router.get('/following/:userId', [verifyToken], async (req, res) => {
   }
 });
 
+router.get('/connections/:userId', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getConnections(req.params.userId);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/all', [verifyToken], async (req, res) => {
+
+  try {
+    const psql = require('../init_db').psql;
+    const result = await psql.Query(`
+      SELECT u.id, u.email, p.full_name, p.headline, p.bio, p.location, p.avatar_url
+      FROM users u
+      LEFT JOIN profiles p ON u.id = p.user_id
+      ORDER BY p.full_name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+
