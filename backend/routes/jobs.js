@@ -63,4 +63,14 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
   }
 });
 
+// Get jobs applied by current user
+router.get('/applied', [verifyToken], async (req, res) => {
+  try {
+    const result = await Jobs.GetApplied(req.userId);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
