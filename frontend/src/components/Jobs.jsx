@@ -54,6 +54,15 @@ const Jobs = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleApply = async (jobId) => {
+    try {
+      await jobAPI.applyJob(jobId);
+      alert('Applied successfully!');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Apply failed');
+    }
+  };
+
   const handlePostJob = async (e) => {
     e.preventDefault();
     try {
@@ -161,21 +170,24 @@ const Jobs = () => {
 
         {/* Jobs list */}
         <div className="jobs-list">
-          {jobs.map((job) => (
-            <div key={job.id} className="job-card">
-              <h3>{job.title}</h3>
-              <p className="company">{job.company}</p>
-              <p className="location">{job.location}</p>
-              <p className="salary">
-                {job.salary_range.min} - {job.salary_range.max} {job.salary_range.currency}
-              </p>
-              <p>{job.description}</p>
-              <p className="applicants">{job.applications?.length} applicants</p>
-              <button onClick={() => handleApply(job.id)} className="apply-btn">
-                Apply Now
-              </button>
-            </div>
-          ))}
+          {jobs.map((job) => {
+            const salary = typeof job.salary_range === 'object' && job.salary_range !== null
+              ? `${job.salary_range.min} - ${job.salary_range.max} ${job.salary_range.currency}`
+              : (job.salary_range || '');
+            return (
+              <div key={job.id} className="job-card">
+                <h3>{job.title}</h3>
+                <p className="company">{job.company_name || job.company}</p>
+                <p className="location">{job.location}</p>
+                {salary && <p className="salary">{salary}</p>}
+                <p>{job.description}</p>
+                <p className="applicants">{job.applicants_count ?? (job.applications?.length ?? 0)} applicants</p>
+                <button onClick={() => handleApply(job.id)} className="apply-btn">
+                  Apply Now
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
