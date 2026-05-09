@@ -9,8 +9,8 @@ const PostQuery = require('../query/post');
  */
 router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
     try {
-        const { content, image } = req.body;
-        const result = await PostQuery.SaveContent(req.userId, content, image);
+        const { content, image, media } = req.body;
+        const result = await PostQuery.SaveContent(req.userId, content, media || image);
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);

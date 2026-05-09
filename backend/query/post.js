@@ -6,11 +6,11 @@ const mongoose = require('mongoose');
  * Helper to transform and join MongoDB data
  */
 const transformPostInternal = async (post) => {
-    if (!post) return null;
-    const p = post.toObject ? post.toObject() : post;
-    const postId = p._id.toString();
+    const p = JSON.parse(JSON.stringify(post));
+    const postId = p._id || p.id;
 
     // Fetch related data from separate collections
+    console.log(`DEBUG BACKEND: Post ${postId} has media:`, p.content?.media?.length || 0);
     const reactions = await mongosh.Reaction.find({ post_id: postId });
     const commentsList = await mongosh.Comment.find({ post_id: postId }).sort({ created_at: 1 });
 
@@ -21,30 +21,44 @@ const transformPostInternal = async (post) => {
             title: p.author.headline || '',
             profileImage: p.author.profileImage || 'https://via.placeholder.com/150'
         },
-        content: p.content?.text || '',
-        image: p.content?.media?.[0]?.url || '',
+        content: p.content,
+        images: Array.isArray(p.content?.media) 
+            ? p.content.media.filter(m => m.type === 'image').map(m => m.url) 
+            : (p.images || []),
+        image: p.content?.media?.[0]?.url || p.image || '',
         likes: reactions.filter(r => r.type === 'like').map(r => r.user_id),
+        likesCount: p.stats?.likes || 0,
+        commentsCount: p.stats?.comments || 0,
+        sharesCount: p.stats?.shares || 0,
         comments: commentsList.map(c => ({
             id: c._id.toString(),
-            userId: c.user.id,
+            userName: c.user?.name || 'User',
             text: c.content,
             createdAt: c.created_at
         })),
         shares: p.stats?.shares || 0,
-        createdAt: p.created_at
+        createdAt: p.created_at || p.createdAt
     };
 };
 
 /**
  * Save a new post (Integrates Postgres Profile)
  */
-const SaveContent = async (userId, text, image) => {
+const SaveContent = async (userId, text, media) => {
     // 1. Fetch user data from PostgreSQL first
     const userResult = await UserQuery.getUserProfileById(userId);
     if (!userResult || userResult.rowCount === 0) {
         throw new Error("User profile not found in PostgreSQL");
     }
     const profile = userResult.rows[0];
+
+    // Normalize media: if it's a string, convert to [{type: 'image', url: image}]
+    let mediaArray = [];
+    if (Array.isArray(media)) {
+        mediaArray = media;
+    } else if (typeof media === 'string' && media.trim()) {
+        mediaArray = [{ type: 'image', url: media }];
+    }
 
     // 2. Prepare MongoDB document
     const postData = {
@@ -56,7 +70,7 @@ const SaveContent = async (userId, text, image) => {
         },
         content: {
             text: text,
-            media: image ? [{ type: 'image', url: image }] : [],
+            media: mediaArray,
             link_preview: null
         },
         stats: { likes: 0, comments: 0, shares: 0 },
