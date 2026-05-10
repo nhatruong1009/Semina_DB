@@ -25,7 +25,7 @@ const createUser = (email, password_hash, full_name, headline) => {
 
 const getUser = (email) => {
   return psql.Query(`
-    SELECT u.*, p.full_name,  p.headline,
+    SELECT u.*, p.full_name, p.headline, p.avatar_url, p.cover_url, p.location, p.bio,
            COALESCE(
              (SELECT COUNT(*) 
               FROM company_users cu 
@@ -42,7 +42,7 @@ const getUser = (email) => {
 
 const getUserProfileById = (userId) => {
   return psql.Query(`
-    SELECT u.id, u.email, p.full_name, p.headline
+    SELECT u.id, u.email, p.full_name, p.headline, p.avatar_url, p.cover_url, p.location, p.bio
     FROM "users" u
     LEFT JOIN "profiles" p ON u.id = p.user_id
     WHERE u.id = $1

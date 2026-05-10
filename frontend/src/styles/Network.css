@@ -37,6 +37,18 @@
 .user-card h4 {
   margin: 10px 0 5px;
   font-size: 18px;
+  color: #333;
+}
+
+.user-info-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.user-info-link:hover h4 {
+  color: #0077b5;
+  text-decoration: underline;
 }
 
 .user-card .title {
@@ -48,6 +60,13 @@
 .user-card .bio {
   font-size: 13px;
   color: #999;
+  margin-bottom: 10px;
+}
+
+.location-text {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
   margin-bottom: 10px;
 }
 
