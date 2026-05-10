@@ -5,7 +5,7 @@ const { redisMiddleware } = require('../middleware/user');
 const PostQuery = require('../query/post');
 const { publishPostEvent, POSTS_EVENT_TYPE } = require('../datadriven/data_collector');
 const graphQuery = require('../query/neo4j');
-
+const cache = require('../query/cache')
 /**
  * Create a new post
  */
@@ -25,11 +25,25 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
  * Get feed posts
  */
 router.get('/feed', [verifyToken], async (req, res) => {
+    const start = Date.now(); // capture start time
+    is_cache = false;
     try {
-        const transformedFeed = await PostQuery.GetFeed();
-        res.json(transformedFeed);
+        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_PUBLIC, req.userId);
+        if (ids !== null) {
+            is_cache = true;
+            const records = await PostQuery.GetByIds(ids, req.userId);
+            res.json(records);
+        } else {
+            const transformedFeed = await PostQuery.GetFeed(req.userId);
+            const Post_ids = transformedFeed.map(p=>p.id);
+            cache.storeCache(cache.CACHE_TYPE.FEED_PUBLIC, req.userId, Post_ids)
+            res.json(transformedFeed);
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
+    } finally {
+        const end = Date.now();
+        console.log(`get feed${is_cache ? "" :" no"} cache: ${end - start} ms`);
     }
 });
 
@@ -37,13 +51,26 @@ router.get('/feed', [verifyToken], async (req, res) => {
  * Get network feed (posts from people user follows/connects)
  */
 router.get('/feed/network', [verifyToken], async (req, res) => {
+    const start = Date.now(); // capture start time
+    is_cache = false;
     try {
-        const records = await graphQuery.getFeedByNetwork(String(req.userId));
-        const postIds = records.map(r => r.toObject().post_id);
-        const posts = await PostQuery.GetByIds(postIds);
-        res.json(posts);
+        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
+        if (ids !== null) {
+            is_cache = true;
+            const records = await PostQuery.GetByIds(ids, req.userId);
+            res.json(records);
+        } else {
+            const records = await graphQuery.getFeedByNetwork(String(req.userId));
+            const postIds = records.map(r => r.toObject().post_id);
+            const posts = await PostQuery.GetByIds(postIds, req.userId);
+            cache.storeCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId, postIds)
+            res.json(posts);
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
+    } finally {
+        const end = Date.now();
+        console.log(`get feed${is_cache ? "" :" no"} cache: ${end - start} ms`);
     }
 });
 
@@ -106,6 +133,18 @@ router.post('/:id/comment', [verifyToken], async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+router.get('/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const { limit = 10, skip = 0 } = req.query;
+  try {
+    const comments = await PostQuery.get_commentsList(id, false, parseInt(limit), parseInt(skip));
+    res.json(comments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 /**
  * Share a post
