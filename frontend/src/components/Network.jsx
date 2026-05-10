@@ -27,8 +27,17 @@ const Network = () => {
       networkAPI.getSuggestionsAll(String(user.id))
         .then(res => setSuggestions(res.data))
         .catch(() => {});
+
+      // Fetch real following list from Neo4j
+      networkAPI.getFollowing(String(user.id))
+        .then(res => {
+          const ids = res.data.map(item => item.user_id);
+          setFollowingIds(ids);
+        })
+        .catch(err => console.error('Error fetching following list:', err));
     }
   }, [user?.id]);
+
 
   useEffect(() => {
     if (!user?.id || suggestions.length === 0) return;

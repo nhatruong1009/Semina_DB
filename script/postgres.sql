@@ -15,7 +15,10 @@ CREATE TABLE profiles (
     headline VARCHAR(255),
     bio TEXT,
     location VARCHAR(100),
+    avatar_url VARCHAR(512),
+    cover_url VARCHAR(512),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -25,28 +28,6 @@ CREATE TABLE companies (
     industry VARCHAR(100),
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    salary_range VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'OPEN', -- OPEN, CLOSED
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
-);
-
-CREATE TABLE job_applications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    job_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, REVIEWED, REJECTED, ACCEPTED
-    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
-    CONSTRAINT fk_applicant FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    -- Đảm bảo 1 user không apply 2 lần vào cùng 1 job
-    CONSTRAINT unique_job_application UNIQUE (job_id, user_id) 
 );
 
 -- ta cần tài khoản để kiểm soát các "account" công ti
@@ -60,6 +41,32 @@ CREATE TABLE company_users  (
     CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT unique_company_admin UNIQUE (company_id, user_id)
+);
+
+CREATE TABLE jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    recruiter_id UUID NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    description TEXT,
+    salary_range JSONB,
+    status VARCHAR(50) DEFAULT 'OPEN', -- OPEN, CLOSED
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_recruiter FOREIGN KEY (company_id, recruiter_id)
+        REFERENCES company_users(company_id, user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE job_applications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, REVIEWED, REJECTED, ACCEPTED
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_applicant FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    -- Đảm bảo 1 user không apply 2 lần vào cùng 1 job
+    CONSTRAINT unique_job_application UNIQUE (job_id, user_id) 
 );
 
 -- Speed up lookups of all admins for a company
@@ -77,6 +84,66 @@ CREATE INDEX idx_jobs_company_id ON jobs(company_id);
 CREATE INDEX idx_applications_job_id ON job_applications(job_id);
 CREATE INDEX idx_applications_user_id ON job_applications(user_id);
 
+
+--- some triggers
+CREATE OR REPLACE FUNCTION check_recruiter_active()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Ensure recruiter exists, belongs to the company, and is active
+  IF NOT EXISTS (
+    SELECT 1
+    FROM company_users cu
+    WHERE cu.user_id = NEW.recruiter_id
+      AND cu.company_id = NEW.company_id
+      AND cu.active = true
+  ) THEN
+    RAISE EXCEPTION 'Recruiter must be active in company_users';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger on jobs table
+CREATE TRIGGER validate_recruiter_active
+BEFORE INSERT OR UPDATE ON jobs
+FOR EACH ROW
+EXECUTE FUNCTION check_recruiter_active();
+
+
+-- Function to check job application validity
+CREATE OR REPLACE FUNCTION check_job_application_valid()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Ensure the job is still open
+  IF NOT EXISTS (
+    SELECT 1
+    FROM jobs j
+    WHERE j.id = NEW.job_id
+      AND j.status = 'OPEN'
+  ) THEN
+    RAISE EXCEPTION 'Cannot apply: job is not OPEN';
+  END IF;
+
+  -- Ensure the applicant user is active
+  IF NOT EXISTS (
+    SELECT 1
+    FROM users u
+    WHERE u.id = NEW.user_id
+      AND u.status = 'ACTIVE'
+  ) THEN
+    RAISE EXCEPTION 'Cannot apply: user account is not ACTIVE';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger on job_applications table
+CREATE TRIGGER validate_job_application
+BEFORE INSERT OR UPDATE ON job_applications
+FOR EACH ROW
+EXECUTE FUNCTION check_job_application_valid();
 
 
 -- WITH new_user AS (

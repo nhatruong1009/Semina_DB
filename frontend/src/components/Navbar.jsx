@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { AuthContext } from '../AuthContext';
 import '../styles/Navbar.css';
 
-const Navbar = ({ currentPage, setCurrentPage }) => {
+const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
   const { logout, user } = useContext(AuthContext);
 
   return (
@@ -29,16 +29,17 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             className={currentPage === 'jobs' ? 'active' : ''}
             onClick={() => setCurrentPage('jobs')}
           >
-            Jobs
+            Manage Jobs
           </button>
           }
+
           {user?.is_superadmin === true &&
           <button onClick={() => setCurrentPage('admin-companies')}>Admin Companies</button>
           }
 
         </div>
         <div className="navbar-right">
-          <div className="navbar-user">
+          <div className="navbar-user" onClick={() => navigateToProfile(user.id)}>
             <img 
               src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'User')}&background=0a66c2&color=fff`} 
               alt="me" 
@@ -50,6 +51,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             Logout
           </button>
         </div>
+
       </div>
     </nav>
   );

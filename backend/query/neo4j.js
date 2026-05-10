@@ -132,7 +132,10 @@ const removeWorksAt = (userId, companyId) =>
 const createJobNode = (jobId, title, companyId, salaryRange = '') =>
   neo4j.Query(
     `MERGE (j:Job {job_id: $jobId})
-     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN', j.salary_range = $salaryRange`,
+     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN', j.salary_range = $salaryRange
+     WITH j
+     MATCH (c:Company {company_id: $companyId})
+     MERGE (j)-[:BELONGS_TO]->(c)`,
     { jobId: String(jobId), title, companyId: String(companyId), salaryRange }
   );
 
@@ -222,9 +225,12 @@ const getPostInteractions = (postId) =>
 
 const getFeedByNetwork = (userId) =>
   neo4j.Query(
-    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)-[:LIKED|SHARED]->(p:Post)
-     RETURN DISTINCT p.post_id AS post_id, count(*) AS score
+    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)
+     MATCH (friend)-[r:AUTHORED|LIKED|SHARED]->(p:Post)
+     RETURN DISTINCT p.post_id AS post_id, 
+            CASE WHEN type(r) = 'AUTHORED' THEN 2 ELSE 1 END AS score
      ORDER BY score DESC`,
+
     { userId: String(userId) }
   );
 
@@ -242,7 +248,15 @@ const getFollowing = (userId) =>
     { userId: String(userId) }
   );
 
+const getConnections = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:CONNECTS]-(connected:User)
+     RETURN connected.user_id AS user_id, connected.name AS name`,
+    { userId: String(userId) }
+  );
+
 module.exports = {
+
   createUser,
   getSuggestions,
   getSuggestionsAll,
@@ -269,4 +283,6 @@ module.exports = {
   getFeedByNetwork,
   getFollowers,
   getFollowing,
+  getConnections,
 };
+

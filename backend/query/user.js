@@ -44,11 +44,18 @@ const getUserProfileById = (userId) => {
   return psql.Query(`
     SELECT u.id, u.email, p.full_name, p.headline
     FROM "users" u
-    JOIN "profiles" p ON u.id = p.user_id
+    LEFT JOIN "profiles" p ON u.id = p.user_id
     WHERE u.id = $1
     LIMIT 1;
   `, [userId]);
 }
+
+const getUserById = (userId) => {
+  return psql.Query(`
+    SELECT id, email FROM "users" WHERE id = $1 LIMIT 1;
+  `, [userId]);
+}
+
 
 // for jwt token
 async function storeRefreshToken(userId, token) {
@@ -79,7 +86,9 @@ module.exports = {
     createUser,
     getUser,
     getUserProfileById,
+    getUserById,
     storeRefreshToken,
+
     findByRefreshToken,
     deleteRefreshToken,
 }
