@@ -20,11 +20,9 @@ export const authAPI = {
 };
 
 export const userAPI = {
-  getProfile: (id) => API.get(`/users/profile/${id}`),
   getAllUsers: () => API.get('/users/all'),
-  follow: (id) => API.post(`/users/follow/${id}`),
-  unfollow: (id) => API.post(`/users/unfollow/${id}`)
 };
+
 
 export const postAPI = {
   createPost: (content, media) => API.post('/posts/create', { content, media }),
@@ -55,6 +53,12 @@ export const jobAPI = {
   getApplied: () => API.get('/jobs/applied'),
 };
 
+export const profileAPI = {
+  getProfile: (userId) => API.get(`/profiles/${userId}`),
+  updateProfile: (data) => API.put('/profiles/me', data),
+};
+
+
 
 export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
@@ -70,7 +74,9 @@ export const networkAPI = {
   getNetworkFeed: () => API.get('/posts/feed/network'),
   getFollowers: (userId) => API.get(`/users/followers/${userId}`),
   getFollowing: (userId) => API.get(`/users/following/${userId}`),
+  getConnections: (userId) => API.get(`/users/connections/${userId}`),
 };
+
 
 export const companyAPI = {
   getCompanies: () => API.get('/companies'),

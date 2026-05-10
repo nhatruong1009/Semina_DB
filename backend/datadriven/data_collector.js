@@ -37,8 +37,14 @@ async function publishJobEvent(eventType, payload) {
 
 async function consumeUserCreated(payload) {
   console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`);
-  await Neo4j.createUser(payload.user_id, payload.full_name, payload.headline || '');
+  await Neo4j.createUser(
+    payload.user_id, 
+    payload.full_name, 
+    payload.headline || '', 
+    payload.location || ''
+  );
 }
+
 
 async function consumePostsEvents(payload) {
   switch (payload.type) {

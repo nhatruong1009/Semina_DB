@@ -1,0 +1,286 @@
+.profile-page {
+  max-width: 1128px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-header-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cover-photo {
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.edit-cover-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.profile-info-section {
+  padding: 0 24px 24px 24px;
+  position: relative;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 152px;
+  height: 152px;
+  margin-top: -112px;
+  margin-bottom: 12px;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid white;
+  background: white;
+  object-fit: cover;
+}
+
+.edit-avatar-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.profile-main-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.name-headline-group {
+  flex-grow: 1;
+}
+
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+}
+
+.profile-headline-text {
+  font-size: 1rem;
+  color: #000000e6;
+  margin: 4px 0;
+}
+
+.profile-location-text {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 4px 0;
+}
+
+.contact-info-link {
+  color: #0a66c2;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-connections-count {
+  font-size: 0.9rem;
+  color: #0a66c2;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.primary-btn {
+  background: #0a66c2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-btn {
+  background: white;
+  color: #0a66c2;
+  border: 1px solid #0a66c2;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-section-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.profile-bio-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #333;
+}
+
+.experience-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.item-logo {
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f3f2ef;
+  border-radius: 4px;
+}
+
+.item-details h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.item-details p {
+  margin: 2px 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.item-date {
+  font-size: 0.85rem !important;
+}
+
+/* Modal Styles */
+.profile-edit-modal {
+  max-width: 600px !important;
+  width: 90%;
+}
+
+.edit-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+.save-btn {
+  background: #0a66c2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-end;
+}
+
+.profile-social-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+
+.stat-link {
+  color: #0a66c2;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stat-link:hover {
+  text-decoration: underline;
+}
+
+.small-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.small-user-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.small-user-item img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.small-user-item span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.empty-msg {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .profile-main-meta {
+    flex-direction: column;
+  }
+  .profile-actions {
+    width: 100%;
+  }
+  .profile-social-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

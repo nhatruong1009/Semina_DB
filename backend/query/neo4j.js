@@ -215,9 +215,12 @@ const getPostInteractions = (postId) =>
 
 const getFeedByNetwork = (userId) =>
   neo4j.Query(
-    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)-[:LIKED|SHARED]->(p:Post)
-     RETURN DISTINCT p.post_id AS post_id, count(*) AS score
+    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)
+     MATCH (friend)-[r:AUTHORED|LIKED|SHARED]->(p:Post)
+     RETURN DISTINCT p.post_id AS post_id, 
+            CASE WHEN type(r) = 'AUTHORED' THEN 2 ELSE 1 END AS score
      ORDER BY score DESC`,
+
     { userId: String(userId) }
   );
 
@@ -235,7 +238,15 @@ const getFollowing = (userId) =>
     { userId: String(userId) }
   );
 
+const getConnections = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:CONNECTS]-(connected:User)
+     RETURN connected.user_id AS user_id, connected.name AS name`,
+    { userId: String(userId) }
+  );
+
 module.exports = {
+
   createUser,
   getSuggestions,
   getSuggestionsAll,
@@ -261,4 +272,6 @@ module.exports = {
   getFeedByNetwork,
   getFollowers,
   getFollowing,
+  getConnections,
 };
+

@@ -15,7 +15,10 @@ CREATE TABLE profiles (
     headline VARCHAR(255),
     bio TEXT,
     location VARCHAR(100),
+    avatar_url VARCHAR(512),
+    cover_url VARCHAR(512),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
