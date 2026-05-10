@@ -13,7 +13,7 @@ const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
      WHERE suggest.user_id <> $userId
      AND NOT (u)-[:CONNECTS]->(suggest)
      AND NOT suggest.user_id IN $exclude
-     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id
+     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id, suggest.headline AS headline
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -39,7 +39,7 @@ const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
     `MATCH (u:User {user_id: $userId})-[:STUDIED_AT]->(school)<-[:STUDIED_AT]-(other:User)
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
-     RETURN other.name AS name, other.user_id AS user_id, school.name AS school
+     RETURN other.name AS name, other.user_id AS user_id, other.headline AS headline, school.name AS school
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -49,7 +49,7 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
     `MATCH (u:User {user_id: $userId})-[:WORKS_AT]->(company)<-[:WORKS_AT]-(other:User)
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
-     RETURN other.name AS name, other.user_id AS user_id, company.name AS company
+     RETURN other.name AS name, other.user_id AS user_id, other.headline AS headline, company.name AS company
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -69,7 +69,7 @@ const getHighlyConnectedUsers = (userId, { limit = 10, exclude = [] } = {}) =>
      WITH candidate, rand() AS r
      ORDER BY r
      LIMIT $limit
-     RETURN candidate.name AS name, candidate.user_id AS user_id`,
+     RETURN candidate.name AS name, candidate.user_id AS user_id, candidate.headline AS headline`,
     { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) * 2 }
   );
 
@@ -99,7 +99,7 @@ const getSuggestionsAll = async (userId, { limit = 20, ratio = DEFAULT_RATIO } =
       const uid = String(obj.user_id);
       if (seen.has(uid)) continue;
       seen.add(uid);
-      results.push({ user_id: uid, name: obj[nameField], relation: key });
+      results.push({ user_id: uid, name: obj[nameField], headline: obj.headline || '', relation: key });
       taken++;
     }
   }
