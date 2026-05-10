@@ -85,7 +85,6 @@ router.post('/login', async (req, res) => {
     );
     const refreshToken = uuidv4(); // token to refesh jwt
     await User.storeRefreshToken(userId, refreshToken);
-    console.log(user.is_staff)
     const userPayload = { 
       ...user, 
       id: userId, 
