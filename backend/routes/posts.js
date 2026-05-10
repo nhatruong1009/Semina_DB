@@ -14,6 +14,9 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
         const { content, image, media } = req.body;
         const result = await PostQuery.SaveContent(req.userId, content, media || image);
         publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
+        // New post invalidates author's feed caches so they see it immediately
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC,  req.userId);
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);
@@ -93,6 +96,8 @@ router.post('/:id/like', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const result = await PostQuery.LikePost(req.params.id, req.userId);
         publishPostEvent(POSTS_EVENT_TYPE.LIKE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
+        // Like count changed — invalidate cached post content
+        cache.invalidateCache(cache.CACHE_TYPE.POST_CONTENT, req.params.id);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/like:', err);
@@ -107,6 +112,8 @@ router.post('/:id/unlike', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const result = await PostQuery.UnlikePost(req.params.id, req.userId);
         publishPostEvent(POSTS_EVENT_TYPE.UNLIKE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
+        // Like count changed — invalidate cached post content
+        cache.invalidateCache(cache.CACHE_TYPE.POST_CONTENT, req.params.id);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/unlike:', err);
@@ -127,6 +134,8 @@ router.post('/:id/comment', [verifyToken], async (req, res) => {
             post_id: req.params.id,
             comment_id: lastComment.id,
         }).catch(console.error);
+        // Comment count changed — invalidate cached post content
+        cache.invalidateCache(cache.CACHE_TYPE.POST_CONTENT, req.params.id);
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/comment:', err);
@@ -153,6 +162,10 @@ router.post('/:id/share', [verifyToken], async (req, res) => {
     try {
         const result = await PostQuery.SharePost(req.params.id, req.userId);
         publishPostEvent(POSTS_EVENT_TYPE.SHARE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
+        // Share count changed + sharer's feed now includes this post
+        cache.invalidateCache(cache.CACHE_TYPE.POST_CONTENT,  req.params.id);
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC,   req.userId);
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK,  req.userId);
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/share:', err);
