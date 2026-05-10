@@ -303,7 +303,7 @@ const getSuggestJobsForUser = (userId, limit = 10, exclude = []) =>
   );
 
 const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
-   neo4j.Query(
+  neo4j.Query(
     `
     // skill-based matches
     MATCH (j:Job {job_id: $jobId})<-[:REQUIRES_SKILL]-(s:Skill)<-[:HAS_SKILL]-(u:User)
@@ -318,9 +318,11 @@ const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
 
     UNION
 
-    // fallback users if not enough matches
+    // fallback users if not enough matches (randomized)
     MATCH (u2:User)
     WHERE NOT u2.user_id IN $exclude
+    WITH u2
+    ORDER BY rand()
     RETURN u2.user_id AS user_id,
            u2.name AS name,
            u2.headline AS headline,
@@ -329,6 +331,7 @@ const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
     `,
     { jobId: String(jobId), limit: parseInt(limit), exclude }
   );
+
 
 module.exports = {
 
