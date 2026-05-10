@@ -8,7 +8,7 @@ router.post('/create', [verifyToken], async (req, res) => {
   try {
     const { title, company_id, location, description, salary_range } = req.body;
     const createdAt = new Date();
-    const records = await Jobs.Create(company_id, title, location, description, salary_range, createdAt)
+    const records = await Jobs.Create(company_id, req.userId, title, location, description, salary_range, createdAt)
     if (!records || records.rowCount === 0) {
       return res.status(500).json({ success: false, error: "Job creation failed" });
     }
@@ -17,6 +17,7 @@ router.post('/create', [verifyToken], async (req, res) => {
       job_id: job.id,
       title: job.title,
       company_id: job.company_id,
+      recruiter_id: req.userId,
     }).catch(err => console.error('Kafka publishJobEvent CREATE:', err));
     res.json(job);
   } catch (err) {

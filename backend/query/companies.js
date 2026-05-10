@@ -10,6 +10,47 @@ const CreateCompany = (name, industry, description, createdAt) => {
   );
 };
 
+const CreateCompanyWithAdmin = async (name, industry, description, createdAt, adminEmail) => {
+  try {
+    await psql.Query('BEGIN');
+
+    // Step 1: Insert the company
+    const companyResult = await psql.Query(
+      `INSERT INTO companies (name, industry, description, created_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name, industry, description, createdAt]
+    );
+    const company = companyResult.rows[0];
+
+    // Step 2: Look up the admin user
+    const userResult = await psql.Query(
+      `SELECT id FROM users WHERE email = $1`,
+      [adminEmail]
+    );
+    if (!userResult || userResult.rowCount === 0) {
+      throw new Error('Admin user not found for email: ' + adminEmail);
+    }
+    const admin = userResult.rows[0];
+
+    // Step 3: Assign admin role
+    const companyUserResult = await psql.Query(
+      `INSERT INTO company_users (company_id, user_id, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (company_id, user_id) DO UPDATE SET role = EXCLUDED.role
+       RETURNING *`,
+      [company.id, admin.id, 'admin']
+    );
+
+    await psql.Query('COMMIT');
+    return { company, admin };
+  } catch (err) {
+    await psql.Query('ROLLBACK');
+    console.log('create company error ROLLBACK');
+    throw err;
+  }
+};
+
 // Link a user to a company with a role
 const AddCompanyUser = async (company_id, email, role) => {
   // Look up the user_id from email
@@ -75,6 +116,7 @@ const DeactivateCompanyUser = (company_id, user_id) => {
 
 module.exports = {
   CreateCompany,
+  CreateCompanyWithAdmin,
   AddCompanyUser,
   GetCompanies,
   GetCompaniesByUser,

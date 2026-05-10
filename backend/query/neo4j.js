@@ -129,11 +129,24 @@ const removeWorksAt = (userId, companyId) =>
     { userId: String(userId), companyId: String(companyId) }
   );
 
-const createJobNode = (jobId, title, companyId) =>
+// Create Job node and link to company + recruiter
+const createJobNode = (jobId, title, companyId, userId) =>
   neo4j.Query(
     `MERGE (j:Job {job_id: $jobId})
-     SET j.title = $title, j.company_id = $companyId`,
-    { jobId: String(jobId), title, companyId: String(companyId) }
+     SET j.title = $title, j.company_id = $companyId
+     WITH j
+     MATCH (c:Company {company_id: $companyId})
+     MERGE (j)-[:BELONGS_TO]->(c)
+     WITH j, c
+     MATCH (u:User {user_id: $userId})
+     MERGE (j)-[:RECRUITED_BY]->(u)
+     MERGE (u)-[:WORKS_AT]->(c)`,
+    {
+      jobId: String(jobId),
+      title,
+      companyId: String(companyId),
+      userId: String(userId)
+    }
   );
 
 const applyJob = (userId, jobId) =>
