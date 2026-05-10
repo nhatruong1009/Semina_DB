@@ -21,9 +21,9 @@ const CACHE_CONFIG = {
     [CACHE_TYPE.SUGGESTIONS_JOBS]:      { prefix: 'suggestions:jobs',   ttl: 120 },       // 2 min
     [CACHE_TYPE.JOB_RECOMMENDATIONS]:   { prefix: 'job:recommendations', ttl: 120 }, // 2 min
     [CACHE_TYPE.SAME_SCHOOL]:           { prefix: 'same:school',    ttl: 60 },                  // 1 min
-    [CACHE_TYPE.SAME_COMPANY]:          { prefix: 'same:company',   ttl: 60 },                // 1 min
-    [CACHE_TYPE.FEED_PUBLIC]:           { prefix: 'feed:public',    ttl: 120 },                 // 2 min - frequent refresh
-    [CACHE_TYPE.FEED_NETWORK]:          { prefix: 'feed:network',   ttl: 60 },                // 1 min
+    [CACHE_TYPE.SAME_COMPANY]:          { prefix: 'same:company',   ttl: 60 },                  // 1 min
+    [CACHE_TYPE.FEED_PUBLIC]:           { prefix: 'feed:public',    ttl: 180 },                 // 3 min - frequent refresh
+    [CACHE_TYPE.FEED_NETWORK]:          { prefix: 'feed:network',   ttl: 300 },                 // 5 min
     [CACHE_TYPE.JOBS_ALL]:              { prefix: 'jobs:all',       ttl: 300 },                       // 5 min - less dynamic
     [CACHE_TYPE.JOBS_APPLIED]:          { prefix: 'jobs:applied',   ttl: 300 },               // 5 min
     [CACHE_TYPE.PROFILE]:               { prefix: 'profile:user',   ttl: 600 },                    // 10 min - static data
