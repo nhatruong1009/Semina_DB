@@ -29,7 +29,7 @@ const getJobRecommendations = (userId) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
      WHERE j.status = 'OPEN'
-     RETURN j.job_id AS job_id, j.title AS job, j.salary_range AS salary, count(s) AS matching_skills
+     RETURN j.job_id AS job_id, j.title AS job, j.salary_min AS salary_min, j.salary_max AS salary_max, j.salary_currency AS salary_currency, count(s) AS matching_skills
      ORDER BY matching_skills DESC`,
     { userId }
   );
@@ -129,15 +129,25 @@ const removeWorksAt = (userId, companyId) =>
     { userId: String(userId), companyId: String(companyId) }
   );
 
-const createJobNode = (jobId, title, companyId, salaryRange = '') =>
-  neo4j.Query(
+const createJobNode = (jobId, title, companyId, salaryRange = null) => {
+  const salary = typeof salaryRange === 'object' && salaryRange !== null ? salaryRange : {};
+  return neo4j.Query(
     `MERGE (j:Job {job_id: $jobId})
-     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN', j.salary_range = $salaryRange
+     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN',
+         j.salary_min = $salaryMin, j.salary_max = $salaryMax, j.salary_currency = $salaryCurrency
      WITH j
      MATCH (c:Company {company_id: $companyId})
      MERGE (j)-[:BELONGS_TO]->(c)`,
-    { jobId: String(jobId), title, companyId: String(companyId), salaryRange }
+    {
+      jobId: String(jobId),
+      title,
+      companyId: String(companyId),
+      salaryMin: salary.min ?? null,
+      salaryMax: salary.max ?? null,
+      salaryCurrency: salary.currency ?? '',
+    }
   );
+};
 
 const applyJob = (userId, jobId) =>
   neo4j.Query(
