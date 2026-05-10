@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Neo4j = require('../query/neo4j');
 const { verifyToken } = require('../middleware/auth');
+const cache = require('../query/cache')
 
 router.get('/suggestions-all/:userId', [verifyToken], async (req, res) => {
   try {
@@ -93,6 +94,7 @@ router.post('/follow', [verifyToken], async (req, res) => {
   try {
     const { followerId, followeeId } = req.body;
     await Neo4j.createFollow(followerId, followeeId);
+    cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -103,6 +105,7 @@ router.post('/unfollow', [verifyToken], async (req, res) => {
   try {
     const { followeeId } = req.body;
     await Neo4j.unfollow(String(req.userId), followeeId);
+    cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
