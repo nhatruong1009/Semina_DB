@@ -69,4 +69,4 @@ async function run(n = 10) {
   }
 }
 
-run(300); // create random users posts
+run(20); // create random users posts

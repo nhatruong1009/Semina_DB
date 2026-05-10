@@ -10,7 +10,6 @@ const transformPostInternal = async (post) => {
     const postId = p._id || p.id;
 
     // Fetch related data from separate collections
-    console.log(`DEBUG BACKEND: Post ${postId} has media:`, p.content?.media?.length || 0);
     const reactions = await mongosh.Reaction.find({ post_id: postId });
     const commentsList = await mongosh.Comment.find({ post_id: postId }).sort({ created_at: 1 });
 

@@ -3,3 +3,4 @@ dist/
 package-lock.json
 backend/coverage/
 uploads
+frontend/src/data_generator/*.txt

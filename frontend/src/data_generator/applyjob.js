@@ -63,4 +63,4 @@ async function run(n = 20) {
   }
 }
 
-run(500); // simulate 50 random job applications
+run(50); // simulate 50 random job applications

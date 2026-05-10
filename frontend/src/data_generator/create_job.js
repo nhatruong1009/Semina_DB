@@ -104,4 +104,4 @@ async function run(numCompanies = 3) {
 }
 
 // Example: pick 3 random companies, each gets 1–5 jobs
-run(3);
+run(5);
