@@ -73,8 +73,12 @@ const Network = () => {
 
   const handleConnect = async (targetUserId) => {
     try {
-      await networkAPI.connect(String(user.id), String(targetUserId));
+      await Promise.all([
+        networkAPI.connect(String(user.id), String(targetUserId)),
+        networkAPI.follow(String(user.id), String(targetUserId)),
+      ]);
       setConnectedIds([...connectedIds, targetUserId]);
+      setFollowingIds([...followingIds, targetUserId]);
     } catch (err) {
       console.error('Error connecting:', err);
     }
@@ -91,7 +95,8 @@ const Network = () => {
             {suggestions.map((s) => (
               <div key={s.user_id} className="user-card">
                 <h4>{s.name}</h4>
-                <p className="title">{RELATION_LABEL[s.relation] || s.relation}</p>
+                {s.headline && <p className="title">{s.headline}</p>}
+                <p className="relation-badge">{RELATION_LABEL[s.relation] || s.relation}</p>
                 {mutuals[s.user_id]?.length > 0 && (
                   <p className="mutual-count">
                     {mutuals[s.user_id].length} mutual connection{mutuals[s.user_id].length > 1 ? 's' : ''}
