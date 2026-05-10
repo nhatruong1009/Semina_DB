@@ -15,9 +15,9 @@ router.post('/companies/create', [verifyToken, checkSuperAdmin], async (req, res
     }
 
     // Create Neo4j nodes/relationships
-    Neo4j.createCompanyNode(company.id, company.name)
+    await Neo4j.createCompanyNode(company.id, company.name)
       .catch(err => console.error('Neo4j createCompanyNode:', err));
-    Neo4j.worksAt(admin.id, company.id)
+    await Neo4j.worksAt(admin.id, company.id)
       .catch(err => console.error('Neo4j worksAt:', err));
 
     // Respond with both company and admin info

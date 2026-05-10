@@ -236,7 +236,7 @@ const getPostInteractions = (postId) =>
 const getFeedByNetwork = (userId) =>
   neo4j.Query(
     `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)
-     MATCH (friend)-[r:AUTHORED|LIKED|SHARED]->(p:Post)
+     MATCH (friend)-[r:AUTHORED|SHARED]->(p:Post)
      RETURN DISTINCT p.post_id AS post_id, 
             CASE WHEN type(r) = 'AUTHORED' THEN 2 ELSE 1 END AS score
      ORDER BY score DESC`,

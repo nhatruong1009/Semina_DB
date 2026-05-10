@@ -75,7 +75,6 @@ async function consumePostsEvents(payload) {
 
 async function consumeJobsEvents(payload) {
   try{
-  console.log("consumeJobsEvents");
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);

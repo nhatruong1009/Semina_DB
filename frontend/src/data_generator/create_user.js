@@ -29,4 +29,4 @@ async function createTestAccounts(count = 1000) {
   }
 }
 
-createTestAccounts(100);
+createTestAccounts(50);
