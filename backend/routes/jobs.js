@@ -59,7 +59,7 @@ router.get('/', [verifyToken], async (req, res) => {
     const now = new Date();
     const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`
     let job_ids = await cache.getCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.userId, {date:dateStr});
-    if (!job_ids) {
+    if (job_ids === null) {
       const records = await Neo4j.getSuggestJobsForUser(req.userId, 20);
       job_ids = records.map(r => r.toObject().job_id);
       await cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.userId, job_ids, {date:dateStr})
