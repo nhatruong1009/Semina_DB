@@ -96,6 +96,11 @@ const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApp
             <span className="applicant-count-badge">
               <span className="count-number">{job.applicants_count ?? 0}</span> applicants
             </span>
+            {job.matching_skills > 0 && (
+              <span className="meta-badge matching-badge">
+                {job.matching_skills} matching skills
+              </span>
+            )}
             <span className="posted-date">
               Posted on {new Date(job.created_at).toLocaleDateString()}
             </span>
