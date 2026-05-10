@@ -9,30 +9,25 @@ router.post('/companies/create', [verifyToken, checkSuperAdmin], async (req, res
   try {
     const { name, industry, description, email } = req.body;
     const createdAt = new Date();
-
-    const companyResult = await Companies.CreateCompany(name, industry, description, createdAt);
-    if (!companyResult || companyResult.rowCount === 0) {
+    const { company, admin } = await Companies.CreateCompanyWithAdmin( name, industry, description, createdAt, email);
+    if (!company || !admin) {
       return res.status(500).json({ success: false, error: 'Company creation failed' });
     }
-    const company = companyResult.rows[0];
 
-    // Assign the chosen admin user
-    const adminResult = await Companies.AddCompanyUser(company.id, email, 'ADMIN');
-    const adminUserId = adminResult.rows[0]?.user_id;
-
+    // Create Neo4j nodes/relationships
     Neo4j.createCompanyNode(company.id, company.name)
       .catch(err => console.error('Neo4j createCompanyNode:', err));
-    if (adminUserId) {
-      Neo4j.worksAt(adminUserId, company.id)
-        .catch(err => console.error('Neo4j worksAt:', err));
-    }
+    Neo4j.worksAt(admin.id, company.id)
+      .catch(err => console.error('Neo4j worksAt:', err));
 
-    res.json(company);
+    // Respond with both company and admin info
+    res.json({ company, admin });
   } catch (err) {
     console.error('Error creating company:', err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Get all companies (super admin view)
 router.get('/companies', [verifyToken, checkSuperAdmin], async (req, res) => {

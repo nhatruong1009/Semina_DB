@@ -1,10 +1,11 @@
 const psql = require('../init_db').psql
 
-const Create = (company_id, title, location, description, salary_range, createdAt) => {
-  return psql.Query(`INSERT INTO jobs (company_id, title, location, description, salary_range, status, created_at)
-    VALUES ($1, $2, $3, $4, $5, 'OPEN', $6)
-    RETURNING *`,
-    [company_id, title, location, description, salary_range, createdAt]
+const Create = (company_id, recruiter_id, title, location, description, salary_range, createdAt) => {
+  return psql.Query(
+    `INSERT INTO jobs (company_id, recruiter_id, title, location, description, salary_range, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', $7)
+     RETURNING *`,
+    [company_id, recruiter_id, title, location, description, salary_range, createdAt]
   );
 }
 
@@ -73,6 +74,7 @@ const GetByManager = (user_id) => {
     [user_id]
   );
 }
+
 
 const GetApplicants = (job_id) => {
   return psql.Query(

@@ -16,8 +16,6 @@ const verifyToken = (req, res, next) => {
 const checkSuperAdmin = (req, res, next) => {
   // Replace with your own UUID or add a role check
   const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL;
-
-  console.log(SUPERADMIN_EMAIL, req.email )
   if (req.email !== SUPERADMIN_EMAIL) {
     return res.status(403).json({ error: 'Forbidden: only super admin can access' });
   }

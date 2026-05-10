@@ -47,6 +47,7 @@ async function consumeUserCreated(payload) {
 
 
 async function consumePostsEvents(payload) {
+  try{
   switch (payload.type) {
     case POSTS_EVENT_TYPE.CREATE:
       await Neo4j.authored(payload.author_id, payload.post_id);
@@ -66,16 +67,29 @@ async function consumePostsEvents(payload) {
       await Neo4j.sharePost(payload.user_id, payload.post_id);
       break;
   }
+  } catch(err){
+    console.log("consumePostsEvents error", err);
+  }
 }
 
 async function consumeJobsEvents(payload) {
+  try{
+  console.log("consumeJobsEvents");
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
-      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id);
+      await Neo4j.createJobNode(
+          payload.job_id, 
+          payload.title, 
+          payload.company_id,
+          payload.recruiter_id,
+        );
       break;
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);
       break;
+  }
+  } catch(err){
+    console.log("consumeJobsEvents error", err);
   }
 }
 
