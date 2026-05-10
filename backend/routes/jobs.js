@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const Jobs = require('../query/jobs');
+const Neo4j = require('../query/neo4j');
+const psql = require('../data/postgresql');
 const { publishJobEvent, JOBS_EVENT_TYPE } = require('../datadriven/data_collector');
 
 router.post('/create', [verifyToken], async (req, res) => {
@@ -77,6 +79,43 @@ router.get('/:id/applicants', [verifyToken], async (req, res) => {
   try {
     const result = await Jobs.GetApplicants(req.params.id);
     res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// n ứng viên phù hợp nhất cho 1 job (sort theo % skill match)
+router.get('/:id/best-candidates', [verifyToken], async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+    const records = await Neo4j.getBestUsersForJob(req.params.id, limit);
+    const candidates = records.map(r => r.toObject());
+
+    if (candidates.length === 0) return res.json([]);
+
+    // Enrich với PostgreSQL: lấy email + avatar
+    const userIds = candidates.map(c => String(c.user_id));
+    const result = await psql.Query(`
+      SELECT u.id, u.email, p.full_name, p.avatar_url, p.location
+      FROM users u
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE u.id = ANY($1::uuid[])
+    `, [userIds]);
+
+    const pgMap = Object.fromEntries(result.rows.map(u => [u.id, u]));
+    const enriched = candidates.map(c => ({
+      user_id:         String(c.user_id),
+      name:            String(c.name),
+      headline:        String(c.headline || ''),
+      location:        String(c.location || ''),
+      matching_skills: Number(c.matching_skills),
+      required_skills: Number(c.required_skills),
+      match_percent:   Number(c.match_percent),
+      email:           pgMap[String(c.user_id)]?.email      ?? null,
+      avatar_url:      pgMap[String(c.user_id)]?.avatar_url ?? null,
+    }));
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

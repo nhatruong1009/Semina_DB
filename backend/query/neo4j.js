@@ -34,6 +34,47 @@ const getJobRecommendations = (userId) =>
     { userId }
   );
 
+// n job phù hợp nhất cho user — sort theo % skill match
+const getBestJobsForUser = (userId, limit = 10) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
+     WHERE j.status = 'OPEN'
+     WITH j, count(DISTINCT s) AS matching_skills
+     MATCH (j)-[:REQUIRES_SKILL]->(req:Skill)
+     WITH j, matching_skills, count(DISTINCT req) AS required_skills
+     RETURN j.job_id        AS job_id,
+            j.title         AS title,
+            j.company_id    AS company_id,
+            j.salary_min    AS salary_min,
+            j.salary_max    AS salary_max,
+            j.salary_currency AS salary_currency,
+            matching_skills,
+            required_skills,
+            round(100.0 * matching_skills / required_skills) AS match_percent
+     ORDER BY match_percent DESC, matching_skills DESC
+     LIMIT toInteger($limit)`,
+    { userId, limit: parseInt(limit) }
+  );
+
+// n ứng viên phù hợp nhất cho 1 job — sort theo % skill match
+const getBestUsersForJob = (jobId, limit = 10) =>
+  neo4j.Query(
+    `MATCH (j:Job {job_id: $jobId})-[:REQUIRES_SKILL]->(s:Skill)<-[:HAS_SKILL]-(u:User)
+     WITH u, count(DISTINCT s) AS matching_skills
+     MATCH (j2:Job {job_id: $jobId})-[:REQUIRES_SKILL]->(req:Skill)
+     WITH u, matching_skills, count(DISTINCT req) AS required_skills
+     RETURN u.user_id   AS user_id,
+            u.name      AS name,
+            u.headline  AS headline,
+            u.location  AS location,
+            matching_skills,
+            required_skills,
+            round(100.0 * matching_skills / required_skills) AS match_percent
+     ORDER BY match_percent DESC, matching_skills DESC
+     LIMIT toInteger($limit)`,
+    { jobId, limit: parseInt(limit) }
+  );
+
 const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:STUDIED_AT]->(school)<-[:STUDIED_AT]-(other:User)
@@ -274,6 +315,8 @@ module.exports = {
   getHighlyConnectedUsers,
   getMutualConnections,
   getJobRecommendations,
+  getBestJobsForUser,
+  getBestUsersForJob,
   getSameSchool,
   getSameCompany,
   createCompanyNode,

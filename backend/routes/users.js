@@ -46,6 +46,44 @@ router.get('/mutual/:userId1/:userId2', [verifyToken], async (req, res) => {
   }
 });
 
+// n job phù hợp nhất cho user (có match_percent, enrich từ PostgreSQL)
+router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+    const records = await Neo4j.getBestJobsForUser(req.params.userId, limit);
+    const recs = records.map(r => r.toObject());
+
+    if (recs.length === 0) return res.json([]);
+
+    const jobIds = recs.map(r => String(r.job_id));
+    const result = await psql.Query(`
+      SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+             c.name AS company_name, c.id AS company_id,
+             COUNT(ja.id)::int AS applicants_count
+      FROM jobs j
+      LEFT JOIN companies c ON j.company_id = c.id
+      LEFT JOIN job_applications ja ON j.id = ja.job_id
+      WHERE j.id = ANY($1::uuid[])
+      GROUP BY j.id, c.name, c.id
+    `, [jobIds]);
+
+    const metaMap = Object.fromEntries(
+      recs.map(r => [String(r.job_id), {
+        matching_skills: Number(r.matching_skills),
+        required_skills: Number(r.required_skills),
+        match_percent:   Number(r.match_percent),
+      }])
+    );
+    const enriched = result.rows
+      .map(j => ({ ...j, ...metaMap[j.id] }))
+      .sort((a, b) => b.match_percent - a.match_percent);
+
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   try {
     const records = await Neo4j.getJobRecommendations(req.params.userId);
