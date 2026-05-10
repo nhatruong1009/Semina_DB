@@ -35,7 +35,7 @@ function App() {
         {currentPage === 'network' && <Network navigateToProfile={navigateToProfile} />}
         {currentPage === 'jobs' && <Jobs />}
         {currentPage === 'admin-companies' && <AdminCompany />}
-        {currentPage === 'profile' && <Profile userId={targetUserId} />}
+        {currentPage === 'profile' && <Profile userId={targetUserId} navigateToProfile={navigateToProfile} />}
       </div>
     </div>
   );

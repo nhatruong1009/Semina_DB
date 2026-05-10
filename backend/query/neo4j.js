@@ -20,8 +20,8 @@ const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
 
 const getMutualConnections = (userId1, userId2) =>
   neo4j.Query(
-    `MATCH (u1:User {user_id: $userId1})-[:FOLLOWS]->(common)<-[:FOLLOWS]-(u2:User {user_id: $userId2})
-     RETURN common.name AS mutual_connection, common.user_id AS user_id`,
+    `MATCH (u1:User {user_id: $userId1})-[:FOLLOWS]-(common)-[:FOLLOWS]-(u2:User {user_id: $userId2})
+     RETURN DISTINCT common.name AS mutual_connection, common.user_id AS user_id`,
     { userId1, userId2 }
   );
 
@@ -166,7 +166,8 @@ const createConnect = (userId1, userId2) =>
 
 const createFollow = (followerId, followeeId) =>
   neo4j.Query(
-    `MATCH (u1:User {user_id: $followerId}), (u2:User {user_id: $followeeId})
+    `MERGE (u1:User {user_id: $followerId})
+     MERGE (u2:User {user_id: $followeeId})
      MERGE (u1)-[:FOLLOWS]->(u2)`,
     { followerId, followeeId }
   );
