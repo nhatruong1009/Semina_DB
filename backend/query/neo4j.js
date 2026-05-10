@@ -306,7 +306,7 @@ const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
   neo4j.Query(
     `
     // skill-based matches
-    MATCH (j:Job {job_id: $jobId})<-[:REQUIRES_SKILL]-(s:Skill)<-[:HAS_SKILL]-(u:User)
+    MATCH (j:Job {job_id: $jobId})-[:REQUIRES_SKILL]->(s:Skill)<-[:HAS_SKILL]-(u:User)
     WHERE NOT u.user_id IN $exclude
     WITH u, count(s) AS matching_skills
     RETURN u.user_id AS user_id,
