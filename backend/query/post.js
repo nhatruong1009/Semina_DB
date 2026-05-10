@@ -44,7 +44,7 @@ const transformPostInternal = async (post, { update = false, commentsLimit = 3, 
         author: {
             ...p.author,
             title: p.author.headline || '',
-            profileImage: p.author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.author.name || 'User')}&background=random`
+            profileImage: p.author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.author.name || 'User')}&background=0a66c2&color=fff`
         },
         content: p.content,
         images: Array.isArray(p.content?.media) 
@@ -87,7 +87,7 @@ const SaveContent = async (userId, text, media) => {
             id: profile.id.toString(),
             name: profile.full_name,
             headline: profile.headline || 'Member',
-            profileImage: profile.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=0a66c2&color=fff`
+            profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=0a66c2&color=fff`
         },
         content: {
             text: text,

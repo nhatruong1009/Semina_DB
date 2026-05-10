@@ -169,10 +169,10 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
           alt="author" 
           className="profile-image clickable" 
           onError={(e) => handleImageError(e, 'profile', post.author?.name)}
-          onClick={() => navigateToProfile(post.author_id)}
+          onClick={() => navigateToProfile(post.author_id || post.author?.id || post.user_id || post.author?._id)}
         />
         <div className="post-info">
-          <h4 className="author-name clickable" onClick={() => navigateToProfile(post.author_id)}>
+          <h4 className="author-name clickable" onClick={() => navigateToProfile(post.author_id || post.author?.id || post.user_id || post.author?._id)}>
             {post.author?.name || 'User'}
           </h4>
           <p className="author-headline">{post.author?.headline || post.author?.title || ''}</p>

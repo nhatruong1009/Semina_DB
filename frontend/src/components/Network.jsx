@@ -3,13 +3,11 @@ import { userAPI, networkAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import '../styles/Network.css';
 
-const Network = () => {
+const Network = ({ navigateToProfile }) => {
   const [users, setUsers] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [mutuals, setMutuals] = useState({});
   const { user } = useContext(AuthContext);
   const [followingIds, setFollowingIds] = useState(user?.following || []);
-  const [connectedIds, setConnectedIds] = useState([]);
 
   const RELATION_LABEL = {
     friend: 'Mutual friend',
@@ -20,7 +18,7 @@ const Network = () => {
 
   useEffect(() => {
     userAPI.getAllUsers()
-      .then(res => setUsers(res.data.filter(u => u.id !== user?.id)))
+      .then(res => setUsers(res.data.filter(u => String(u.id) !== String(user?.id))))
       .catch(err => console.error('Error fetching users:', err));
 
     if (user?.id) {
@@ -28,7 +26,6 @@ const Network = () => {
         .then(res => setSuggestions(res.data))
         .catch(() => {});
 
-      // Fetch real following list from Neo4j
       networkAPI.getFollowing(String(user.id))
         .then(res => {
           const ids = res.data.map(item => item.user_id);
@@ -37,21 +34,6 @@ const Network = () => {
         .catch(err => console.error('Error fetching following list:', err));
     }
   }, [user?.id]);
-
-
-  useEffect(() => {
-    if (!user?.id || suggestions.length === 0) return;
-    suggestions
-      .filter(s => s.relation === 'friend')
-      .forEach(s => {
-        networkAPI.getMutual(String(user.id), String(s.user_id))
-          .then(res => {
-            if (res.data.length > 0)
-              setMutuals(prev => ({ ...prev, [s.user_id]: res.data }));
-          })
-          .catch(() => {});
-      });
-  }, [suggestions]);
 
   const handleFollow = async (userId) => {
     try {
@@ -65,49 +47,44 @@ const Network = () => {
   const handleUnfollow = async (userId) => {
     try {
       await networkAPI.unfollow(String(userId));
-      setFollowingIds(followingIds.filter(id => id !== userId));
+      setFollowingIds(followingIds.filter(id => String(id) !== String(userId)));
     } catch (err) {
       console.error('Error unfollowing user:', err);
     }
   };
 
-  const handleConnect = async (targetUserId) => {
-    try {
-      await Promise.all([
-        networkAPI.connect(String(user.id), String(targetUserId)),
-        networkAPI.follow(String(user.id), String(targetUserId)),
-      ]);
-      setConnectedIds([...connectedIds, targetUserId]);
-      setFollowingIds([...followingIds, targetUserId]);
-    } catch (err) {
-      console.error('Error connecting:', err);
-    }
-  };
+  // Enrich suggestions with avatar and location from the users array
+  const enrichedSuggestions = suggestions.map(s => {
+    const fullUser = users.find(u => String(u.id) === String(s.user_id));
+    return fullUser ? { ...s, avatar_url: fullUser.avatar_url, location: fullUser.location } : s;
+  });
 
   return (
     <div className="network-container">
       <h2>Network</h2>
 
-      {suggestions.length > 0 && (
+      {enrichedSuggestions.length > 0 && (
         <section>
           <h3>People You May Know</h3>
           <div className="users-grid">
-            {suggestions.map((s) => (
+            {enrichedSuggestions.map((s) => (
               <div key={s.user_id} className="user-card">
-                <h4>{s.name}</h4>
-                {s.headline && <p className="title">{s.headline}</p>}
-                <p className="relation-badge">{RELATION_LABEL[s.relation] || s.relation}</p>
-                {mutuals[s.user_id]?.length > 0 && (
-                  <p className="mutual-count">
-                    {mutuals[s.user_id].length} mutual connection{mutuals[s.user_id].length > 1 ? 's' : ''}
-                  </p>
-                )}
+                <div onClick={() => navigateToProfile(s.user_id)} className="user-info-link" style={{cursor: 'pointer'}}>
+                  <img 
+                    src={s.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || 'User')}&background=0a66c2&color=fff`} 
+                    alt={s.name} 
+                    className="user-image"
+                  />
+                  <h4>{s.name}</h4>
+                  <p className="title">{s.headline || 'No headline available'}</p>
+                  {s.location && <p className="location-text">{s.location}</p>}
+                </div>
+                {s.relation !== 'friend' && <p className="relation-badge">{RELATION_LABEL[s.relation] || s.relation}</p>}
                 <button
-                  onClick={() => handleConnect(s.user_id)}
-                  disabled={connectedIds.includes(s.user_id)}
-                  className="follow"
+                  onClick={() => followingIds.includes(s.user_id) ? handleUnfollow(s.user_id) : handleFollow(s.user_id)}
+                  className={followingIds.includes(s.user_id) ? 'following' : 'follow'}
                 >
-                  {connectedIds.includes(s.user_id) ? 'Connected' : 'Connect'}
+                  {followingIds.includes(s.user_id) ? 'Following' : 'Follow'}
                 </button>
               </div>
             ))}
@@ -120,14 +97,22 @@ const Network = () => {
         <div className="users-grid">
           {users.map((u) => (
             <div key={u.id} className="user-card">
-              <h4>{u.full_name || u.name}</h4>
-              <p className="title">{u.headline || u.title}</p>
-              <p className="bio">{u.bio}</p>
+              <div onClick={() => navigateToProfile(u.id)} className="user-info-link" style={{cursor: 'pointer'}}>
+                <img 
+                  src={u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || u.name || 'User')}&background=0a66c2&color=fff`} 
+                  alt={u.full_name || u.name} 
+                  className="user-image"
+                />
+                <h4>{u.full_name || u.name}</h4>
+                <p className="title">{u.headline || u.title || 'No headline available'}</p>
+                {u.location && <p className="location-text">{u.location}</p>}
+              </div>
               <button
-                onClick={() => followingIds.includes(u.id) ? handleUnfollow(u.id) : handleFollow(u.id)}
-                className={followingIds.includes(u.id) ? 'following' : 'follow'}
+                onClick={() => followingIds.includes(String(u.id)) ? handleUnfollow(u.id) : handleFollow(u.id)}
+                className={followingIds.includes(String(u.id)) ? 'following' : 'follow'}
+                style={{marginTop: '10px'}}
               >
-                {followingIds.includes(u.id) ? 'Following' : 'Follow'}
+                {followingIds.includes(String(u.id)) ? 'Following' : 'Follow'}
               </button>
             </div>
           ))}
