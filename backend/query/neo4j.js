@@ -13,7 +13,7 @@ const getSuggestions = (userId, { limit = 10, exclude = [] } = {}) =>
      WHERE suggest.user_id <> $userId
      AND NOT (u)-[:CONNECTS]->(suggest)
      AND NOT suggest.user_id IN $exclude
-     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id
+     RETURN suggest.name AS suggested_user, suggest.user_id AS user_id, suggest.headline AS headline
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -29,7 +29,7 @@ const getJobRecommendations = (userId) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
      WHERE j.status = 'OPEN'
-     RETURN j.title AS job, j.salary_range AS salary, count(s) AS matching_skills
+     RETURN j.job_id AS job_id, j.title AS job, j.salary_range AS salary, count(s) AS matching_skills
      ORDER BY matching_skills DESC`,
     { userId }
   );
@@ -39,7 +39,7 @@ const getSameSchool = (userId, { limit = 10, exclude = [] } = {}) =>
     `MATCH (u:User {user_id: $userId})-[:STUDIED_AT]->(school)<-[:STUDIED_AT]-(other:User)
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
-     RETURN other.name AS name, other.user_id AS user_id, school.name AS school
+     RETURN other.name AS name, other.user_id AS user_id, other.headline AS headline, school.name AS school
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -49,7 +49,7 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
     `MATCH (u:User {user_id: $userId})-[:WORKS_AT]->(company)<-[:WORKS_AT]-(other:User)
      WHERE other.user_id <> $userId
      AND NOT other.user_id IN $exclude
-     RETURN other.name AS name, other.user_id AS user_id, company.name AS company
+     RETURN other.name AS name, other.user_id AS user_id, other.headline AS headline, company.name AS company
      LIMIT toInteger($limit)`,
     { userId, exclude, limit: parseInt(limit) }
   );
@@ -69,7 +69,7 @@ const getHighlyConnectedUsers = (userId, { limit = 10, exclude = [] } = {}) =>
      WITH candidate, rand() AS r
      ORDER BY r
      LIMIT $limit
-     RETURN candidate.name AS name, candidate.user_id AS user_id`,
+     RETURN candidate.name AS name, candidate.user_id AS user_id, candidate.headline AS headline`,
     { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) * 2 }
   );
 
@@ -99,7 +99,7 @@ const getSuggestionsAll = async (userId, { limit = 20, ratio = DEFAULT_RATIO } =
       const uid = String(obj.user_id);
       if (seen.has(uid)) continue;
       seen.add(uid);
-      results.push({ user_id: uid, name: obj[nameField], relation: key });
+      results.push({ user_id: uid, name: obj[nameField], headline: obj.headline || '', relation: key });
       taken++;
     }
   }
@@ -129,24 +129,14 @@ const removeWorksAt = (userId, companyId) =>
     { userId: String(userId), companyId: String(companyId) }
   );
 
-// Create Job node and link to company + recruiter
-const createJobNode = (jobId, title, companyId, userId) =>
+const createJobNode = (jobId, title, companyId, salaryRange = '') =>
   neo4j.Query(
     `MERGE (j:Job {job_id: $jobId})
-     SET j.title = $title, j.company_id = $companyId
+     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN', j.salary_range = $salaryRange
      WITH j
      MATCH (c:Company {company_id: $companyId})
-     MERGE (j)-[:BELONGS_TO]->(c)
-     WITH j, c
-     MATCH (u:User {user_id: $userId})
-     MERGE (j)-[:RECRUITED_BY]->(u)
-     MERGE (u)-[:WORKS_AT]->(c)`,
-    {
-      jobId: String(jobId),
-      title,
-      companyId: String(companyId),
-      userId: String(userId)
-    }
+     MERGE (j)-[:BELONGS_TO]->(c)`,
+    { jobId: String(jobId), title, companyId: String(companyId), salaryRange }
   );
 
 const applyJob = (userId, jobId) =>
@@ -219,6 +209,13 @@ const sharePost = (userId, postId) =>
     { userId: String(userId), postId: String(postId) }
   );
 
+const deleteComment = (userId, postId, commentId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[r:COMMENTED {comment_id: $commentId}]->(p:Post {post_id: $postId})
+     DELETE r`,
+    { userId: String(userId), postId: String(postId), commentId: String(commentId) }
+  );
+
 const getPostInteractions = (postId) =>
   neo4j.Query(
     `MATCH (u:User)-[r:LIKED|COMMENTED|SHARED]->(p:Post {post_id: $postId})
@@ -280,6 +277,7 @@ module.exports = {
   likePost,
   unlikePost,
   commentPost,
+  deleteComment,
   sharePost,
   getPostInteractions,
   getFeedByNetwork,

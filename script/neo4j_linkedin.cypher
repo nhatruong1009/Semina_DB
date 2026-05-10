@@ -16,7 +16,7 @@ CREATE CONSTRAINT job_id IF NOT EXISTS FOR (j:Job) REQUIRE j.job_id IS UNIQUE;
 
 
 // ------------------------------------------------------------
-// 2. SAMPLE DATA 
+// 2. SAMPLE DATA
 // ------------------------------------------------------------
 
 // Users
@@ -24,7 +24,7 @@ CREATE (:User {user_id: '<UUID_USER_1>', name: 'Nguyen Van A', headline: 'Data E
 CREATE (:User {user_id: '<UUID_USER_2>', name: 'Tran Thi B', headline: 'Backend Developer', location: 'Ha Noi'});
 CREATE (:User {user_id: '<UUID_USER_3>', name: 'Le Van C', headline: 'Data Analyst', location: 'Ho Chi Minh City'});
 
-// Companies (UUID khớp với companies.id trong PostgreSQL)
+// Companies — UUIDs must match companies.id in PostgreSQL
 CREATE (:Company {company_id: '<UUID_COMPANY_1>', name: 'FPT Software', industry: 'Technology'});
 CREATE (:Company {company_id: '<UUID_COMPANY_2>', name: 'VNG Corporation', industry: 'Technology'});
 
@@ -38,9 +38,13 @@ CREATE (:Skill {skill_id: '<UUID_SKILL_2>', name: 'SQL'});
 CREATE (:Skill {skill_id: '<UUID_SKILL_3>', name: 'Neo4j'});
 CREATE (:Skill {skill_id: '<UUID_SKILL_4>', name: 'Airflow'});
 
-// Jobs 
+// Jobs
 CREATE (:Job {job_id: '<UUID_JOB_1>', title: 'Data Engineer', salary_range: '20-30M', status: 'OPEN', location: 'Ho Chi Minh City'});
 CREATE (:Job {job_id: '<UUID_JOB_2>', title: 'Backend Developer', salary_range: '25-35M', status: 'OPEN', location: 'Ha Noi'});
+
+// Posts — UUIDs must match _id in MongoDB
+CREATE (:Post {post_id: '<UUID_POST_1>'});
+CREATE (:Post {post_id: '<UUID_POST_2>'});
 
 
 // ------------------------------------------------------------
@@ -71,6 +75,10 @@ CREATE (u1)-[:WORKS_AT {position: 'Data Engineer', start_date: '2022-01-01', end
 MATCH (u2:User {user_id: '<UUID_USER_2>'}), (c2:Company {company_id: '<UUID_COMPANY_2>'})
 CREATE (u2)-[:WORKS_AT {position: 'Backend Developer', start_date: '2021-06-01', end_date: null}]->(c2);
 
+// u1 and u3 share the same company — needed for getSameCompany demo
+MATCH (u3:User {user_id: '<UUID_USER_3>'}), (c1:Company {company_id: '<UUID_COMPANY_1>'})
+CREATE (u3)-[:WORKS_AT {position: 'Data Analyst', start_date: '2023-01-01', end_date: null}]->(c1);
+
 // STUDIED_AT
 MATCH (u1:User {user_id: '<UUID_USER_1>'}), (s1:School {school_id: '<UUID_SCHOOL_1>'})
 CREATE (u1)-[:STUDIED_AT {degree: 'Bachelor', field: 'Computer Science', start_year: 2018, end_year: 2022}]->(s1);
@@ -91,9 +99,31 @@ MATCH (j1:Job {job_id: '<UUID_JOB_1>'}), (sk2:Skill {skill_id: '<UUID_SKILL_2>'}
 MATCH (j1:Job {job_id: '<UUID_JOB_1>'}), (sk4:Skill {skill_id: '<UUID_SKILL_4>'}) CREATE (j1)-[:REQUIRES_SKILL]->(sk4);
 MATCH (j2:Job {job_id: '<UUID_JOB_2>'}), (sk1:Skill {skill_id: '<UUID_SKILL_1>'}) CREATE (j2)-[:REQUIRES_SKILL]->(sk1);
 
+// AUTHORED
+MATCH (u1:User {user_id: '<UUID_USER_1>'}), (p1:Post {post_id: '<UUID_POST_1>'})
+CREATE (u1)-[:AUTHORED]->(p1);
+
+MATCH (u2:User {user_id: '<UUID_USER_2>'}), (p2:Post {post_id: '<UUID_POST_2>'})
+CREATE (u2)-[:AUTHORED]->(p2);
+
+// LIKED — u2 and u3 liked post1, so u1 (who follows both) sees it in getFeedByNetwork
+MATCH (u2:User {user_id: '<UUID_USER_2>'}), (p1:Post {post_id: '<UUID_POST_1>'})
+CREATE (u2)-[:LIKED]->(p1);
+
+MATCH (u3:User {user_id: '<UUID_USER_3>'}), (p2:Post {post_id: '<UUID_POST_2>'})
+CREATE (u3)-[:LIKED]->(p2);
+
+// SHARED — u3 shared post1, so u1 (who follows u3) also sees it in getFeedByNetwork
+MATCH (u3:User {user_id: '<UUID_USER_3>'}), (p1:Post {post_id: '<UUID_POST_1>'})
+CREATE (u3)-[:SHARED]->(p1);
+
+// COMMENTED — comment_id must match comment _id in MongoDB
+MATCH (u3:User {user_id: '<UUID_USER_3>'}), (p2:Post {post_id: '<UUID_POST_2>'})
+CREATE (u3)-[:COMMENTED {comment_id: '<UUID_COMMENT_1>'}]->(p2);
+
 
 // ------------------------------------------------------------
-// 4. INDEX
+// 4. INDEXES
 // ------------------------------------------------------------
 
 CREATE INDEX user_name IF NOT EXISTS FOR (u:User) ON (u.name);
@@ -103,21 +133,19 @@ CREATE INDEX skill_name IF NOT EXISTS FOR (s:Skill) ON (s.name);
 
 
 // ------------------------------------------------------------
-// 5. QUERIES - CÁC CHỨC NĂNG CHÍNH
+// 5. EXAMPLE QUERIES
 // ------------------------------------------------------------
 
-// 5.1 Tìm bạn chung giữa 2 users
+// 5.1 Mutual followers between two users
 MATCH (u1:User {user_id: '<UUID_1>'})-[:FOLLOWS]->(common)<-[:FOLLOWS]-(u2:User {user_id: '<UUID_2>'})
 RETURN common.name AS mutual_connection;
 
-// 5.2 Tìm người cùng trường
+// 5.2 Users from the same school
 MATCH (u:User {user_id: '<UUID>'})-[:STUDIED_AT]->(school)<-[:STUDIED_AT]-(other:User)
 WHERE other.user_id <> '<UUID>'
 RETURN other.name AS same_school_user, school.name AS school;
 
-// 5.3 Tìm người cùng công ty
+// 5.3 Users from the same company
 MATCH (u:User {user_id: '<UUID>'})-[:WORKS_AT]->(company)<-[:WORKS_AT]-(other:User)
 WHERE other.user_id <> '<UUID>'
 RETURN other.name AS same_company_user, company.name AS company;
-
-
