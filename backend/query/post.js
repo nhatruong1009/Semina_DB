@@ -1,19 +1,45 @@
 const mongosh = require('../init_db').mongosh
 const UserQuery = require('./user')
 const mongoose = require('mongoose');
+const cache = require('./cache')
 
 /**
  * Helper to transform and join MongoDB data
  */
-const transformPostInternal = async (post) => {
+
+const get_commentsList = async (postId, update = false, commentsLimit = 3, commentsSkip = 0) => {
+    // Fetch comments with pagination
+    const commentsList = await mongosh.Comment.find({ post_id: postId })
+        .sort({ created_at: -1 }) // newest first
+        .skip(commentsSkip)
+        .limit(commentsLimit);
+
+    const comments_mapped = commentsList.map(c => ({
+            id: c._id.toString(),
+            userName: c.user?.name || 'User',
+            text: c.content,
+            createdAt: c.created_at
+    }));
+    return comments_mapped
+}
+
+const transformPostInternal = async (post, { update = false, commentsLimit = 3, commentsSkip = 0, currentUserId = null } = {}) => {
     const p = JSON.parse(JSON.stringify(post));
     const postId = p._id || p.id;
 
+    if (update === false){
+        const cached = await cache.getCache(cache.CACHE_TYPE.POST_CONTENT, postId)
+        if (cached) {
+            return cached;
+        }
+    }
     // Fetch related data from separate collections
     const reactions = await mongosh.Reaction.find({ post_id: postId });
-    const commentsList = await mongosh.Comment.find({ post_id: postId }).sort({ created_at: 1 });
+    const likes = reactions.filter(r => r.type === 'like');
+    const didLike = currentUserId ? likes.some(r => r.user_id === currentUserId) : false;
+    const commentsList = await get_commentsList(postId, update, commentsLimit, commentsSkip);
 
-    return {
+    const transformedFeed = {
         id: postId,
         author: {
             ...p.author,
@@ -25,19 +51,16 @@ const transformPostInternal = async (post) => {
             ? p.content.media.filter(m => m.type === 'image').map(m => m.url) 
             : (p.images || []),
         image: p.content?.media?.[0]?.url || p.image || '',
-        likes: reactions.filter(r => r.type === 'like').map(r => r.user_id),
+        didLike: didLike,
         likesCount: p.stats?.likes || 0,
         commentsCount: p.stats?.comments || 0,
         sharesCount: p.stats?.shares || 0,
-        comments: commentsList.map(c => ({
-            id: c._id.toString(),
-            userName: c.user?.name || 'User',
-            text: c.content,
-            createdAt: c.created_at
-        })),
+        comments: commentsList,
         shares: p.stats?.shares || 0,
         createdAt: p.created_at || p.createdAt
     };
+    await cache.storeCache(cache.CACHE_TYPE.POST_CONTENT, postId, transformedFeed);
+    return transformedFeed
 };
 
 /**
@@ -80,7 +103,7 @@ const SaveContent = async (userId, text, media) => {
         const newPost = new mongosh.Post(postData);
         const savedPost = await newPost.save();
         console.log('DEBUG: Post saved successfully with ID:', savedPost._id);
-        return await transformPostInternal(savedPost);
+        return await transformPostInternal(savedPost, {update: true, currentUserId: userId.toString()});
     } catch (err) {
       console.error('CRITICAL ERROR: Failed to save post to MongoDB:', err);
       throw err;
@@ -90,13 +113,15 @@ const SaveContent = async (userId, text, media) => {
 /**
  * Get feed posts
  */
-const GetFeed = async () => {
-    const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(50);
+
+
+const GetFeed = async (userId) => {
+    const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(500);
 
     const transformedPosts = [];
     for (const p of posts) {
         try {
-            const transformed = await transformPostInternal(p);
+            const transformed = await transformPostInternal(p, {currentUserId: userId.toString()});
             transformedPosts.push(transformed);
         } catch (err) {
             console.error(`ERROR: Failed to transform post ${p._id}:`, err);
@@ -136,7 +161,7 @@ const LikePost = async (postId, userId) => {
         },
         { new: true }
     );
-    return await transformPostInternal(updatedPost);
+    return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
 /**
@@ -161,7 +186,7 @@ const UnlikePost = async (postId, userId) => {
         },
         { new: true }
     );
-    return await transformPostInternal(updatedPost);
+    return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
 /**
@@ -196,7 +221,7 @@ const CommentPost = async (postId, userId, text) => {
         },
         { new: true }
     );
-    return await transformPostInternal(updatedPost);
+    return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
 /**
@@ -224,13 +249,13 @@ const SharePost = async (postId, userId) => {
         },
         { new: true }
     );
-    return await transformPostInternal(updatedPost);
+    return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
-const GetByIds = async (postIds) => {
+const GetByIds = async (postIds, userId) => {
     if (!postIds.length) return [];
     const posts = await mongosh.Post.find({ _id: { $in: postIds } });
-    return await Promise.all(posts.map(p => transformPostInternal(p)));
+    return await Promise.all(posts.map(p => transformPostInternal(p, {currentUserId: userId.toString()})));
 }
 
 module.exports = {
@@ -240,5 +265,6 @@ module.exports = {
     LikePost,
     UnlikePost,
     CommentPost,
-    SharePost
+    SharePost,
+    get_commentsList
 }

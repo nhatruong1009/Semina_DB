@@ -39,7 +39,8 @@ export const postAPI = {
     return API.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-  }
+  },
+  fetchComments: (id, limit = 10, skip = 0) => API.get(`/posts/${id}/comments?limit=${limit}&skip=${skip}`)
 };
 
 export const jobAPI = {

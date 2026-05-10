@@ -8,11 +8,15 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   const [commentText, setCommentText] = React.useState('');
   const [showComments, setShowComments] = React.useState(false);
 
+  // 🔎 Local state for dynamic comments
+  const [comments, setComments] = React.useState(post.comments || []);
+  const [skip, setSkip] = React.useState(comments.length);
+  const [hasMore, setHasMore] = React.useState(true);
+
   const handleLike = async () => {
     if (!user) return alert('Please login again');
     try {
-      const likes = post.likes || [];
-      if (likes.includes(user.id)) {
+      if (post.didLike === true) {
         await postAPI.unlikePost(post.id);
       } else {
         await postAPI.likePost(post.id);
@@ -27,11 +31,36 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
-      await postAPI.commentPost(post.id, commentText);
+      const newComment = await postAPI.commentPost(post.id, commentText);
+      setComments(prev => [
+        {
+          id: newComment.id,          // backend should return id
+          userName: user?.name || 'User',
+          userImage: user?.profileImage || null,
+          text: commentText,
+          createdAt: new Date().toISOString()
+        },
+        ...prev // newest first
+      ]);
       setCommentText('');
       onUpdate();
     } catch (err) {
       console.error('Error commenting:', err);
+    }
+  };
+
+  const loadMoreComments = async () => {
+    try {
+      const newComments = (await postAPI.fetchComments(post.id, 5, skip)).data;
+      if (newComments.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      setComments(prev => [...prev, ...newComments]);
+      setSkip(prev => prev + newComments.length);
+    } catch (err) {
+      console.error('Error loading more comments:', err);
     }
   };
 
@@ -40,13 +69,10 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   const handleShare = async () => {
     try {
       await postAPI.sharePost(post.id);
-      
       const shareUrl = `${window.location.origin}/post/${post.id}`;
       await navigator.clipboard.writeText(shareUrl);
-      
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
-      
       onUpdate();
     } catch (err) {
       console.error('Error sharing post:', err);
@@ -54,23 +80,17 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   };
 
   const handleImageError = (e, type, name = 'User') => {
-    // Prevent infinite loop if the fallback itself fails
     if (e.target.dataset.errorHandled) return;
     e.target.dataset.errorHandled = "true";
-
     if (type === 'profile') {
       e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=f8c102&color=fff`;
     } else {
-      // Use a more stable placeholder or a base64 transparent pixel as final fallback
       e.target.src = 'https://placehold.co/400x300?text=Image+Unavailable';
-      // If even this fails, the next call will be caught by the data-error-handled check
     }
   };
 
   const renderMedia = () => {
     let mediaItems = [];
-    
-    // Collect media from all possible sources
     let rawItems = [];
     if (post.content && typeof post.content === 'object' && Array.isArray(post.content.media)) {
       rawItems = [...post.content.media];
@@ -86,19 +106,14 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
       rawItems.push({ type: 'image', url: post.image });
     }
 
-    // Normalize and filter
     mediaItems = rawItems.map(item => {
       if (typeof item === 'string') return { type: 'image', url: item };
       if (item && typeof item === 'object') {
-        return {
-          type: item.type || 'image',
-          url: item.url
-        };
+        return { type: item.type || 'image', url: item.url };
       }
       return null;
     }).filter(item => item && item.url);
 
-    // De-duplicate by URL to be safe
     const seenUrls = new Set();
     mediaItems = mediaItems.filter(item => {
       if (seenUrls.has(item.url)) return false;
@@ -135,9 +150,9 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   };
 
   const likesCount = post.likesCount ?? (post.likes?.length || 0);
-  const commentsCount = post.commentsCount ?? (post.comments?.length || 0);
+  const commentsCount = post.commentsCount ?? comments.length;
   const sharesCount = post.sharesCount ?? (post.shares || 0);
-  const isLiked = (post.likes || []).includes(user?.id);
+  const isLiked = post.didLike === true;
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -185,7 +200,7 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
       <div className="post-actions-row">
         <button onClick={handleLike} className={`action-btn ${isLiked ? 'active' : ''}`}>
           <span className="icon yellow">👍</span>
-          <span className="label">Like</span>
+          <span className="label">{isLiked ? 'Unlike' : 'Like'}</span>
         </button>
         <button onClick={() => setShowComments(!showComments)} className="action-btn">
           <span className="icon">💬</span>
@@ -218,7 +233,7 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
           </form>
 
           <div className="comments-list">
-            {(post.comments || []).map((comment, index) => (
+            {comments.map((comment, index) => (
               <div key={comment.id || index} className="comment-item">
                 <img 
                   src={comment.userImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userName || 'User')}&background=random`} 
@@ -243,6 +258,12 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
               </div>
             ))}
           </div>
+
+          {hasMore && (
+            <button onClick={loadMoreComments} className="load-more-btn">
+              Load more comments
+            </button>
+          )}
         </div>
       )}
     </div>
