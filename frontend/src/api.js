@@ -22,8 +22,8 @@ export const authAPI = {
 export const userAPI = {
   getProfile: (id) => API.get(`/users/profile/${id}`),
   getAllUsers: () => API.get('/users/all'),
-  follow: (id) => API.post(`/users/follow/${id}`),
-  unfollow: (id) => API.post(`/users/unfollow/${id}`)
+  follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
+  unfollow: (followeeId) => API.post('/users/unfollow', { followeeId }),
 };
 
 export const postAPI = {

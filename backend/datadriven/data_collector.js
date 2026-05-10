@@ -37,7 +37,7 @@ async function publishJobEvent(eventType, payload) {
 
 async function consumeUserCreated(payload) {
   console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`);
-  await Neo4j.createUser(payload.user_id, payload.full_name, payload.headline || '');
+  await Neo4j.createUser(payload.user_id, payload.full_name, payload.headline || '', payload.location || '');
 }
 
 async function consumePostsEvents(payload) {
@@ -55,6 +55,7 @@ async function consumePostsEvents(payload) {
       await Neo4j.commentPost(payload.user_id, payload.post_id, payload.comment_id);
       break;
     case POSTS_EVENT_TYPE.COMMENT_DEL:
+      await Neo4j.deleteComment(payload.user_id, payload.post_id, payload.comment_id);
       break;
     case POSTS_EVENT_TYPE.SHARE:
       await Neo4j.sharePost(payload.user_id, payload.post_id);
@@ -65,7 +66,7 @@ async function consumePostsEvents(payload) {
 async function consumeJobsEvents(payload) {
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
-      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id);
+      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
       break;
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);

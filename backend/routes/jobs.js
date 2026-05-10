@@ -19,6 +19,7 @@ router.post('/create', [verifyToken], async (req, res) => {
       job_id: job.id,
       title: job.title,
       company_id: job.company_id,
+      salary_range: job.salary_range,
     }).catch(err => console.error('Kafka publishJobEvent CREATE:', err));
     res.json(job);
   } catch (err) {

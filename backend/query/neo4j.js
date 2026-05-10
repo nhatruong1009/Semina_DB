@@ -29,7 +29,7 @@ const getJobRecommendations = (userId) =>
   neo4j.Query(
     `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
      WHERE j.status = 'OPEN'
-     RETURN j.title AS job, j.salary_range AS salary, count(s) AS matching_skills
+     RETURN j.job_id AS job_id, j.title AS job, j.salary_range AS salary, count(s) AS matching_skills
      ORDER BY matching_skills DESC`,
     { userId }
   );
@@ -129,11 +129,11 @@ const removeWorksAt = (userId, companyId) =>
     { userId: String(userId), companyId: String(companyId) }
   );
 
-const createJobNode = (jobId, title, companyId) =>
+const createJobNode = (jobId, title, companyId, salaryRange = '') =>
   neo4j.Query(
     `MERGE (j:Job {job_id: $jobId})
-     SET j.title = $title, j.company_id = $companyId`,
-    { jobId: String(jobId), title, companyId: String(companyId) }
+     SET j.title = $title, j.company_id = $companyId, j.status = 'OPEN', j.salary_range = $salaryRange`,
+    { jobId: String(jobId), title, companyId: String(companyId), salaryRange }
   );
 
 const applyJob = (userId, jobId) =>
@@ -206,6 +206,13 @@ const sharePost = (userId, postId) =>
     { userId: String(userId), postId: String(postId) }
   );
 
+const deleteComment = (userId, postId, commentId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[r:COMMENTED {comment_id: $commentId}]->(p:Post {post_id: $postId})
+     DELETE r`,
+    { userId: String(userId), postId: String(postId), commentId: String(commentId) }
+  );
+
 const getPostInteractions = (postId) =>
   neo4j.Query(
     `MATCH (u:User)-[r:LIKED|COMMENTED|SHARED]->(p:Post {post_id: $postId})
@@ -256,6 +263,7 @@ module.exports = {
   likePost,
   unlikePost,
   commentPost,
+  deleteComment,
   sharePost,
   getPostInteractions,
   getFeedByNetwork,
