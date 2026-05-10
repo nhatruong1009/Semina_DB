@@ -53,7 +53,24 @@ router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
     const records = await Neo4j.getBestJobsForUser(req.params.userId, limit);
     const recs = records.map(r => r.toObject());
 
-    if (recs.length === 0) return res.json([]);
+    // No skill data in Neo4j — fall back to all open jobs for demo
+    if (recs.length === 0) {
+      const fallback = await psql.Query(`
+        SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+               c.name AS company_name, c.id AS company_id,
+               COUNT(ja.id)::int AS applicants_count
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.id
+        LEFT JOIN job_applications ja ON j.id = ja.job_id
+        WHERE j.status = 'OPEN'
+        GROUP BY j.id, c.name, c.id
+        ORDER BY j.created_at DESC
+        LIMIT $1
+      `, [limit]);
+      return res.json(fallback.rows.map(j => ({
+        ...j, matching_skills: 0, required_skills: 0, match_percent: 0,
+      })));
+    }
 
     const jobIds = recs.map(r => String(r.job_id));
     const result = await psql.Query(`
