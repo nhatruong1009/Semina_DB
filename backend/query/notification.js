@@ -1,37 +1,35 @@
 const mongosh = require('../init_db').mongosh;
 
-const createNotification = async (userId, actor, type, target) => {
+const createNotification = async (userId, actor, type, entity) => {
     try {
-        // Idempotency check: Don't create if a similar unread notification exists
-        // or if it was created very recently (e.g., within 1 hour)
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-        const existing = await mongosh.Notification.findOne({
-            user_id: userId,
-            'actor.id': actor.id,
-            type: type,
-            'target.id': target ? target.id : null,
-            created_at: { $gte: oneHourAgo }
-        });
+        // Find an existing UNREAD notification of the same type for the same entity (post/job/etc.)
+        // If found, we update it by adding the new actor and incrementing the count.
+        // If not found, we create a new one.
         
-        if (existing) {
-            console.log('Duplicate notification detected, skipping creation.');
-            return existing;
-        }
-
-        const newNotification = new mongosh.Notification({
+        const filter = {
             user_id: userId,
-            actor: actor,
             type: type,
-            target: target
-        });
-        const saved = await newNotification.save();
-        return saved;
+            'entity.id': entity ? entity.id : null,
+            is_read: false
+        };
+
+        const update = {
+            $addToSet: { actors: { $each: [actor], $slice: -3 } }, // Keep only the 3 most recent actors
+            $inc: { count: 1 },
+            $set: { updated_at: new Date(), entity: entity }, // Update timestamp and ensure entity data is fresh
+            $setOnInsert: { created_at: new Date(), is_read: false }
+        };
+
+        const options = { upsert: true, new: true };
+
+        // Note: $inc will start from 0 if doc is inserted, but our default is 1 in schema.
+        // MongoDB behavior with upsert + $inc: if insert, count becomes value of $inc.
+        // So we set $inc: 1 and it works perfectly.
+        
+        const result = await mongosh.Notification.findOneAndUpdate(filter, update, options);
+        return result;
     } catch (err) {
-        if (err.code === 11000) {
-            console.log('Duplicate notification blocked by database index.');
-            return null; // or return the existing one if needed
-        }
-        console.error('Error creating notification:', err);
+        console.error('Error in createNotification (Aggregated):', err);
         throw err;
     }
 };
@@ -40,11 +38,11 @@ const getNotifications = async (userId, limit = 20, cursor = null) => {
     try {
         let query = { user_id: userId };
         if (cursor) {
-            query.created_at = { $lt: new Date(cursor) };
+            query.updated_at = { $lt: new Date(cursor) }; // Use updated_at for sorting
         }
         
         const notifications = await mongosh.Notification.find(query)
-            .sort({ created_at: -1 })
+            .sort({ updated_at: -1 })
             .limit(limit);
             
         return notifications;

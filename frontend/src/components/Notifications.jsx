@@ -35,14 +35,17 @@ const Notifications = ({ navigateToPost, navigateToProfile }) => {
     }
 
     // 2. Navigate based on type
-    if (notif.target) {
+    const entity = notif.entity || notif.target;
+    const actorId = (notif.actors && notif.actors.length > 0) ? notif.actors[0].id : (notif.actor?.id);
+
+    if (entity) {
       if (['POST_LIKE', 'POST_COMMENT', 'POST_SHARE'].includes(notif.type)) {
-        navigateToPost(notif.target.id);
+        navigateToPost(entity.id);
       } else if (['USER_FOLLOW', 'CONNECTION_REQUEST', 'CONNECTION_ACCEPT'].includes(notif.type)) {
-        navigateToProfile(notif.actor.id);
+        navigateToProfile(entity.id);
       }
-    } else if (notif.actor && !notif.target) {
-        navigateToProfile(notif.actor.id);
+    } else if (actorId) {
+        navigateToProfile(actorId);
     }
   };
 
@@ -61,6 +64,7 @@ const Notifications = ({ navigateToPost, navigateToProfile }) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
 
+    if (diffInSeconds < 0) return 'Just now';
     if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -125,42 +129,58 @@ const Notifications = ({ navigateToPost, navigateToProfile }) => {
           </div>
         ) : (
           <div className="notifications-list">
-            {notifications.map((notif) => (
-              <div 
-                key={notif._id} 
-                className={`notification-item ${!notif.is_read ? 'unread' : ''}`}
-                onClick={() => handleNotifClick(notif)}
-              >
-                <div className="avatar-wrapper">
-                    <img 
-                        src={notif.actor?.avatar || 'https://ui-avatars.com/api/?name=User&background=0a66c2&color=fff'} 
-                        alt="actor" 
-                        className="notification-avatar" 
-                    />
-                    <span className="action-badge">{getActionIcon(notif.type)}</span>
-                </div>
-                <div className="notification-content">
-                  <div className="notification-text">
-                    <span className="actor-name">{notif.actor?.name || 'User'}</span>
-                    <span className="action-desc"> {getActionText(notif.type)}</span>
+            {notifications.map((notif) => {
+              const actors = notif.actors || [];
+              const count = notif.count || (notif.actor ? 1 : 0);
+              const latestActor = actors.length > 0 ? actors[actors.length - 1] : (notif.actor || {});
+              const entity = notif.entity || notif.target || {};
+
+              return (
+                <div 
+                  key={notif._id} 
+                  className={`notification-item ${!notif.is_read ? 'unread' : ''}`}
+                  onClick={() => handleNotifClick(notif)}
+                >
+                  <div className="avatar-wrapper">
+                      <img 
+                          src={latestActor.avatar || 'https://ui-avatars.com/api/?name=User&background=0a66c2&color=fff'} 
+                          alt="actor" 
+                          className="notification-avatar" 
+                      />
+                      <span className="action-badge">{getActionIcon(notif.type)}</span>
                   </div>
-                  {notif.target?.preview && (
-                    <div className="notification-preview">
-                        <span className="quote-icon">“</span>
-                        {notif.target.preview}
-                        <span className="quote-icon">”</span>
+                  <div className="notification-content">
+                    <div className="notification-text">
+                      <span className="actor-name">
+                          {actors.length > 0 ? (
+                              <>
+                                  {count === 1 && actors[0].name}
+                                  {count === 2 && actors.length >= 2 && `${actors[0].name} and ${actors[1].name}`}
+                                  {count === 3 && actors.length >= 3 && `${actors[0].name}, ${actors[1].name}, and ${actors[2].name}`}
+                                  {count > 3 && `${actors[0].name}, ${actors[1].name}, and ${count - 2} others`}
+                              </>
+                          ) : (notif.actor?.name || 'Someone')}
+                      </span>
+                      <span className="action-desc"> {getActionText(notif.type)}</span>
                     </div>
-                  )}
-                  <div className="notification-footer">
-                    <span className="notification-time">{formatTime(notif.created_at)}</span>
-                    {!notif.is_read && <span className="unread-dot"></span>}
+                    {entity.preview && (
+                      <div className="notification-preview">
+                          <span className="quote-icon">“</span>
+                          {entity.preview}
+                          <span className="quote-icon">”</span>
+                      </div>
+                    )}
+                    <div className="notification-footer">
+                      <span className="notification-time">{formatTime(notif.updated_at || notif.created_at)}</span>
+                      {!notif.is_read && <span className="unread-dot"></span>}
+                    </div>
+                  </div>
+                  <div className="notif-action-indicator">
+                      <span className="arrow">›</span>
                   </div>
                 </div>
-                <div className="notif-action-indicator">
-                    <span className="arrow">›</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

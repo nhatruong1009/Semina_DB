@@ -77,13 +77,13 @@ async function handlePostNotification(type, payload) {
       avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
     };
     
-    const target = {
+    const entity = {
       id: payload.post_id,
       type: "POST",
       preview: post.content.text ? post.content.text.substring(0, 50) : "A post"
     };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, target);
+    await NotificationQuery.createNotification(ownerId, actor, type, entity);
   } catch (err) {
     console.error("Error handling notification:", err);
   }
@@ -103,9 +103,13 @@ async function handleUserNotification(type, payload) {
       avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
     };
     
-    const target = null;
+    const entity = {
+      id: payload.target_user_id,
+      type: "USER",
+      preview: `Profile of ${user.full_name}`
+    };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, target);
+    await NotificationQuery.createNotification(ownerId, actor, type, entity);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }

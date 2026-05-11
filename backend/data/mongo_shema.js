@@ -75,15 +75,21 @@ const notificationActorSchema = new mongoose.Schema({
   avatar: { type: String }
 });
 
-const notificationTargetSchema = new mongoose.Schema({
-  id: { type: String },
-  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"] },
+const notificationEntitySchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"], required: true },
   preview: { type: String }
 });
 
 const notificationSchema = new mongoose.Schema({
   user_id: { type: String, required: true },
-  actor: { type: notificationActorSchema, required: true },
+  
+  // List of actors (e.g., people who liked the post)
+  actors: [notificationActorSchema],
+  
+  // Total count of actions (e.g., total likes)
+  count: { type: Number, default: 1 },
+
   type: { 
     type: String, 
     enum: [
@@ -93,22 +99,19 @@ const notificationSchema = new mongoose.Schema({
     ],
     required: true 
   },
-  target: { type: notificationTargetSchema },
+
+  // The thing being acted upon (Post, Job, etc.)
+  entity: { type: notificationEntitySchema },
+
   is_read: { type: Boolean, default: false },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });
 
-notificationSchema.index({ user_id: 1, created_at: -1 });
-notificationSchema.index({ user_id: 1, is_read: 1 });
-notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 });
-
-// Compound unique index to prevent exact duplicates (actor doing same action on same target for same user)
-// We include created_at or a time-based bucket if we want to allow repeats after some time.
-// For now, let's just prevent duplicates for the same unread notification.
-notificationSchema.index(
-  { user_id: 1, "actor.id": 1, type: 1, "target.id": 1, is_read: 1 },
-  { unique: true, partialFilterExpression: { is_read: false } }
-);
+// Compound index for aggregation: group by user, type, and entity
+// We only aggregate UNREAD notifications to ensure new activity pops up.
+notificationSchema.index({ user_id: 1, type: 1, "entity.id": 1, is_read: 1 });
+notificationSchema.index({ updated_at: -1 });
+notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 }); // 30 days
 
 module.exports = { postSchema, commentSchema, reactionSchema, notificationSchema }
