@@ -92,6 +92,14 @@ const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApp
             <p className="job-description-text">{job.description}</p>
           </div>
 
+          {job.required_skills_list?.length > 0 && (
+            <div className="job-skills-row">
+              {job.required_skills_list.map(s => (
+                <span key={s} className="skill-tag skill-tag-sm">{s}</span>
+              ))}
+            </div>
+          )}
+
           <div className="job-stats-row">
             <span className="applicant-count-badge">
               <span className="count-number">{job.applicants_count ?? 0}</span> applicants

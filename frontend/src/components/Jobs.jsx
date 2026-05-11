@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { jobAPI, networkAPI, companyAPI } from '../api';
+import { jobAPI, networkAPI, companyAPI, skillAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import { Country, City } from 'country-state-city';
 import JobCard from './JobCard';
@@ -10,7 +10,7 @@ const Jobs = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentJobId, setCurrentJobId] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -27,19 +27,36 @@ const Jobs = () => {
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [selectedJobTitle, setSelectedJobTitle] = useState('');
 
+  const [formSkills, setFormSkills] = useState([]);
+  const [originalSkills, setOriginalSkills] = useState([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [allSkills, setAllSkills] = useState([]);
+
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
     if (user?.id) {
       fetchMyCompanies();
       fetchMyJobs();
+      skillAPI.getAllSkills().then(res => setAllSkills(res.data.map(s => s.name))).catch(() => {});
     }
   }, [user?.id]);
 
   const fetchMyJobs = async () => {
     try {
       const res = await jobAPI.getMyJobs();
-      setMyJobs(res.data);
+      const jobs = res.data;
+      const withSkills = await Promise.all(
+        jobs.map(async job => {
+          try {
+            const sr = await jobAPI.getJobSkills(job.id);
+            return { ...job, required_skills_list: sr.data.map(s => s.name) };
+          } catch {
+            return { ...job, required_skills_list: [] };
+          }
+        })
+      );
+      setMyJobs(withSkills);
     } catch (err) {
       console.error('Error fetching my jobs:', err);
     }
@@ -65,10 +82,19 @@ const Jobs = () => {
         currency: formData.currency
       };
 
+      let jobId = currentJobId;
       if (isEditing) {
-        await jobAPI.updateJob(currentJobId, formData.title, location, formData.description, salaryRange);
+        await jobAPI.updateJob(jobId, formData.title, location, formData.description, salaryRange);
+        const toAdd = formSkills.filter(s => !originalSkills.includes(s));
+        const toRemove = originalSkills.filter(s => !formSkills.includes(s));
+        await Promise.all([
+          ...toAdd.map(s => jobAPI.addJobSkill(jobId, s)),
+          ...toRemove.map(s => jobAPI.removeJobSkill(jobId, s)),
+        ]);
       } else {
-        await jobAPI.createJob(formData.title, formData.company, location, formData.description, salaryRange);
+        const res = await jobAPI.createJob(formData.title, formData.company, location, formData.description, salaryRange);
+        jobId = res.data.id;
+        await Promise.all(formSkills.map(s => jobAPI.addJobSkill(jobId, s)));
       }
 
       resetForm();
@@ -76,6 +102,17 @@ const Jobs = () => {
     } catch (err) {
       console.error('Error posting job:', err);
     }
+  };
+
+  const handleAddFormSkill = () => {
+    const name = skillInput.trim();
+    if (!name || formSkills.includes(name)) return;
+    setFormSkills([...formSkills, name]);
+    setSkillInput('');
+  };
+
+  const handleRemoveFormSkill = (name) => {
+    setFormSkills(formSkills.filter(s => s !== name));
   };
 
   const resetForm = () => {
@@ -89,6 +126,9 @@ const Jobs = () => {
       salaryMax: '',
       currency: 'USD'
     });
+    setFormSkills([]);
+    setOriginalSkills([]);
+    setSkillInput('');
     setShowForm(false);
     setIsEditing(false);
     setCurrentJobId(null);
@@ -109,6 +149,13 @@ const Jobs = () => {
     setCurrentJobId(job.id);
     setIsEditing(true);
     setShowForm(true);
+    jobAPI.getJobSkills(job.id)
+      .then(res => {
+        const names = res.data.map(s => s.name);
+        setFormSkills(names);
+        setOriginalSkills(names);
+      })
+      .catch(() => {});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -216,6 +263,35 @@ const Jobs = () => {
               </div>
             </div>
 
+
+            <div className="form-group">
+              <label>Required Skills</label>
+              <div className="skills-list">
+                {formSkills.map(s => (
+                  <span key={s} className="skill-tag">
+                    {s}
+                    <button type="button" className="skill-remove-btn" onClick={() => handleRemoveFormSkill(s)}>×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="skill-add-row">
+                <input
+                  type="text"
+                  className="skill-input"
+                  list="job-skills-list"
+                  value={skillInput}
+                  onChange={e => setSkillInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddFormSkill(); } }}
+                  placeholder="Type a skill and press Enter"
+                />
+                <datalist id="job-skills-list">
+                  {allSkills.filter(s => !formSkills.includes(s)).map(s => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+                <button type="button" className="submit-btn" style={{padding:'6px 14px'}} onClick={handleAddFormSkill}>Add</button>
+              </div>
+            </div>
 
             <div className="form-actions">
               <button type="button" className="cancel-btn" onClick={resetForm}>Cancel</button>
