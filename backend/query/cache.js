@@ -153,6 +153,20 @@ const invalidateUserCaches = async (object_id) => {
     }
 };
 
+const invalidateCacheByType = async (type) => {
+    try {
+        const client = redis.getClient();
+        if (!client) return false;
+        const config = get_key_n_ttl(type);
+        const keys = await client.keys(`${config.prefix}:*`);
+        if (keys.length > 0) await client.del(...keys);
+        return true;
+    } catch (err) {
+        console.error(`Error invalidating cache by type ${type}:`, err);
+        return false;
+    }
+};
+
 module.exports = {
     CACHE_TYPE,
     get_key_n_ttl,
@@ -161,4 +175,5 @@ module.exports = {
     storeCache,
     invalidateCache,
     invalidateUserCaches,
+    invalidateCacheByType,
 };

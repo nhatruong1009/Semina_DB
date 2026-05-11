@@ -104,6 +104,9 @@ router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
 
 router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   try {
+    const cached = await cache.getCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId);
+    if (cached) return res.json(cached);
+
     const records = await Neo4j.getJobRecommendations(req.params.userId);
     const recs = records.map(r => r.toObject());
 
@@ -120,7 +123,9 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
         GROUP BY j.id, c.name, c.id
         ORDER BY j.created_at DESC
       `);
-      return res.json(result.rows.map(j => ({ ...j, matching_skills: 0 })));
+      const fallback = result.rows.map(j => ({ ...j, matching_skills: 0 }));
+      cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, fallback);
+      return res.json(fallback);
     }
 
     // Enrich: lấy full job details từ PostgreSQL cho các job Neo4j recommend
@@ -142,6 +147,7 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
       .map(j => ({ ...j, matching_skills: matchMap[j.id] ?? 0 }))
       .sort((a, b) => b.matching_skills - a.matching_skills);
 
+    cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, enriched);
     res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
