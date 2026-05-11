@@ -44,17 +44,12 @@ describe('cache helpers', () => {
     expect(mockDel).toHaveBeenCalledWith('job:recommendations:u1');
   });
 
-  test('invalidateCacheByType deletes all keys matching prefix', async () => {
-    mockKeys.mockResolvedValue(['job:recommendations:u1', 'job:recommendations:u2']);
-    mockDel.mockResolvedValue(2);
-    await cache.invalidateCacheByType(cache.CACHE_TYPE.JOB_RECOMMENDATIONS);
-    expect(mockKeys).toHaveBeenCalledWith('job:recommendations:*');
-    expect(mockDel).toHaveBeenCalledWith('job:recommendations:u1', 'job:recommendations:u2');
-  });
-
-  test('invalidateCacheByType does nothing when no keys found', async () => {
-    mockKeys.mockResolvedValue([]);
-    await cache.invalidateCacheByType(cache.CACHE_TYPE.JOB_RECOMMENDATIONS);
-    expect(mockDel).not.toHaveBeenCalled();
+  test('invalidateCache for multiple users only touches their keys', async () => {
+    mockDel.mockResolvedValue(1);
+    await cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 'u1');
+    await cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 'u2');
+    expect(mockDel).toHaveBeenCalledTimes(2);
+    expect(mockDel).toHaveBeenCalledWith('job:recommendations:u1');
+    expect(mockDel).toHaveBeenCalledWith('job:recommendations:u2');
   });
 });

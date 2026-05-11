@@ -167,7 +167,13 @@ async function consumeJobsEvents(payload) {
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
-      cache.invalidateCacheByType(cache.CACHE_TYPE.JOB_RECOMMENDATIONS)
+      Neo4j.getBestUsersForJob(payload.job_id, 50)
+        .then(records => Promise.all(
+          records.map(r => cache.invalidateCache(
+            cache.CACHE_TYPE.JOB_RECOMMENDATIONS,
+            String(r.toObject().user_id)
+          ))
+        ))
         .catch(e => console.error('cache invalidate job recs:', e));
       break;
     case JOBS_EVENT_TYPE.APPLY:
