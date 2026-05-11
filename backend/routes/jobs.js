@@ -137,6 +137,38 @@ router.get('/:id/best-candidates', [verifyToken], async (req, res) => {
   }
 });
 
+// Get required skills for a job
+router.get('/:id/skills', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getJobSkills(req.params.id);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a required skill to a job
+router.post('/:id/skills', [verifyToken], async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'skill name required' });
+    await Neo4j.addJobSkill(req.params.id, name);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a required skill from a job
+router.delete('/:id/skills/:skillName', [verifyToken], async (req, res) => {
+  try {
+    await Neo4j.removeJobSkill(req.params.id, decodeURIComponent(req.params.skillName));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Apply to a job
 router.post('/:id/apply', [verifyToken], async (req, res) => {
   try {

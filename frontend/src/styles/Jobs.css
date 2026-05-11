@@ -329,3 +329,11 @@
   color: #666;
   font-style: italic;
 }
+
+.job-skills-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.skill-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #e8f0fe; color: #1a73e8; border-radius: 20px; font-size: 13px; font-weight: 500; }
+.skill-tag-sm { font-size: 12px; padding: 2px 8px; }
+.skill-remove-btn { background: none; border: none; cursor: pointer; font-size: 14px; line-height: 1; color: #666; padding: 0; }
+.skill-add-row { display: flex; gap: 8px; margin-top: 8px; }
+.skill-input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+.skills-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
