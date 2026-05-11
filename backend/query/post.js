@@ -117,6 +117,7 @@ const SaveContent = async (userId, text, media) => {
 
 const GetFeed = async (userId) => {
     const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(500);
+    console.log(`[DEBUG GetFeed] Found ${posts.length} posts in DB. Top: ${posts[0]?._id}`);
 
     const transformedPosts = [];
     for (const p of posts) {
@@ -254,7 +255,7 @@ const SharePost = async (postId, userId) => {
 
 const GetByIds = async (postIds, userId) => {
     if (!postIds.length) return [];
-    const posts = await mongosh.Post.find({ _id: { $in: postIds } });
+    const posts = await mongosh.Post.find({ _id: { $in: postIds } }).sort({ created_at: -1 });
     return await Promise.all(posts.map(p => transformPostInternal(p, {currentUserId: userId.toString()})));
 }
 

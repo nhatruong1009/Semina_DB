@@ -59,6 +59,22 @@ const Get = () => {
   );
 }
 
+const GetByIds = (ids) => {
+  return psql.Query(
+    `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at,
+            c.name AS company_name, c.industry, c.description AS company_description,
+            COUNT(a.id) AS applicants_count
+     FROM jobs j
+     JOIN companies c ON j.company_id = c.id
+     LEFT JOIN job_applications a ON j.id = a.job_id
+     WHERE j.id = ANY($1)
+     GROUP BY j.id, c.name, c.industry, c.description
+     ORDER BY j.created_at DESC`,
+    [ids]  // pass array of IDs as parameter
+  );
+};
+
+
 const GetByManager = (user_id) => {
   return psql.Query(
     `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at,
@@ -96,6 +112,7 @@ module.exports = {
   Delete,
   Apply,
   Get,
+  GetByIds,
   GetApplied,
   GetByManager,
   GetApplicants

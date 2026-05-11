@@ -7,12 +7,15 @@ import Jobs from './components/Jobs';
 import Navbar from './components/Navbar';
 import AdminCompany from './components/AdminCompany';
 import Profile from './components/Profile';
+import Notifications from './components/Notifications';
+import PostDetail from './components/PostDetail';
 import './App.css';
 
 function App() {
   const { accessToken } = useContext(AuthContext);
   const [currentPage, setCurrentPage] = useState('feed');
   const [targetUserId, setTargetUserId] = useState(null);
+  const [targetPostId, setTargetPostId] = useState(null);
 
   if (!accessToken) {
     return <Auth />;
@@ -21,6 +24,11 @@ function App() {
   const navigateToProfile = (userId) => {
     setTargetUserId(userId);
     setCurrentPage('profile');
+  };
+
+  const navigateToPost = (postId) => {
+    setTargetPostId(postId);
+    setCurrentPage('post');
   };
 
   return (
@@ -36,6 +44,19 @@ function App() {
         {currentPage === 'jobs' && <Jobs />}
         {currentPage === 'admin-companies' && <AdminCompany />}
         {currentPage === 'profile' && <Profile userId={targetUserId} navigateToProfile={navigateToProfile} />}
+        {currentPage === 'notifications' && (
+            <Notifications 
+                navigateToPost={navigateToPost} 
+                navigateToProfile={navigateToProfile} 
+            />
+        )}
+        {currentPage === 'post' && (
+            <PostDetail 
+                postId={targetPostId} 
+                navigateToProfile={navigateToProfile} 
+                onBack={() => setCurrentPage('notifications')}
+            />
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { postSchema, commentSchema, reactionSchema } = require('./mongo_shema')
+const { postSchema, commentSchema, reactionSchema, notificationSchema } = require('./mongo_shema')
 require('dotenv').config();
 
 const crypto = require("crypto");
@@ -66,6 +66,7 @@ class MongoDB {
     this.post = mongoose.model("Post", postSchema);
     this.comment = mongoose.model("Comment", commentSchema);
     this.reaction = mongoose.model("Reaction", reactionSchema);
+    this.notification = mongoose.model("Notification", notificationSchema);
   }
 
   isReady() {
@@ -75,6 +76,7 @@ class MongoDB {
   getPostModel() { return this.isReady() ? this.post : false; }
   getCommentModel() { return this.isReady() ? this.comment : false; }
   getReactionModel() { return this.isReady() ? this.reaction : false; }
+  getNotificationModel() { return this.isReady() ? this.notification : false; }
 
   get Post () {
     const p = this.getPostModel();
@@ -92,6 +94,12 @@ class MongoDB {
     const r = this.getReactionModel();
     if (!r) throw new Error("Unable to establish a connection to the database.");
     return r;
+  }
+
+  get Notification () {
+    const n = this.getNotificationModel();
+    if (!n) throw new Error("Unable to establish a connection to the database.");
+    return n;
   }
 }
 
