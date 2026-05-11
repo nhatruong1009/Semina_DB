@@ -376,6 +376,35 @@ const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
   );
 
 
+const getUserSkills = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)
+     RETURN s.skill_id AS skill_id, s.name AS name ORDER BY s.name`,
+    { userId: String(userId) }
+  );
+
+const getAllSkills = () =>
+  neo4j.Query(
+    `MATCH (s:Skill) RETURN s.skill_id AS skill_id, s.name AS name ORDER BY s.name`
+  );
+
+const addUserSkill = (userId, skillName) =>
+  neo4j.Query(
+    `MERGE (s:Skill {name: $name})
+     ON CREATE SET s.skill_id = 'skill-' + toLower(replace($name, ' ', '-'))
+     WITH s
+     MATCH (u:User {user_id: $userId})
+     MERGE (u)-[:HAS_SKILL]->(s)`,
+    { userId: String(userId), name: skillName }
+  );
+
+const removeUserSkill = (userId, skillName) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[r:HAS_SKILL]->(s:Skill {name: $name})
+     DELETE r`,
+    { userId: String(userId), name: skillName }
+  );
+
 module.exports = {
 
   createUser,
@@ -409,5 +438,9 @@ module.exports = {
   getConnections,
   getSuggestJobsForUser,
   getSuggestUsersForJob,
+  getUserSkills,
+  getAllSkills,
+  addUserSkill,
+  removeUserSkill,
 };
 

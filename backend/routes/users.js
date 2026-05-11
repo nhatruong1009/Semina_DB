@@ -255,5 +255,47 @@ router.get('/all', [verifyToken], async (req, res) => {
   }
 });
 
+// List all available skills (for dropdown in UI)
+router.get('/skills/all', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getAllSkills();
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get skills of a user
+router.get('/:userId/skills', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getUserSkills(req.params.userId);
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a skill to a user
+router.post('/:userId/skills', [verifyToken], async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'skill name required' });
+    await Neo4j.addUserSkill(req.params.userId, name);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a skill from a user
+router.delete('/:userId/skills/:skillName', [verifyToken], async (req, res) => {
+  try {
+    await Neo4j.removeUserSkill(req.params.userId, decodeURIComponent(req.params.skillName));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 
