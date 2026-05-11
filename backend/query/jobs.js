@@ -68,7 +68,7 @@ const GetByIds = (ids) => {
      JOIN companies c ON j.company_id = c.id
      LEFT JOIN job_applications a ON j.id = a.job_id
      WHERE j.id = ANY($1)
-     GROUP BY j.id, c.name, c.industry, c.description
+     GROUP BY j.id, c.name, c.industry, c.description, j.recruiter_id
      ORDER BY j.created_at DESC`,
     [ids]  // pass array of IDs as parameter
   );
@@ -85,7 +85,7 @@ const GetByManager = (user_id) => {
     JOIN company_users cu ON c.id = cu.company_id
     LEFT JOIN job_applications a ON j.id = a.job_id
     WHERE cu.user_id = $1 AND cu.active = true
-    GROUP BY j.id, c.name
+    GROUP BY j.id, c.name, j.recruiter_id
     ORDER BY j.created_at DESC`,
     [user_id]
   );

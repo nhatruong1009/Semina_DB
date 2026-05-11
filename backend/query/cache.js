@@ -19,7 +19,7 @@ const CACHE_TYPE = {
 const CACHE_CONFIG = {
     [CACHE_TYPE.SUGGESTIONS_USERS]:     { prefix: 'suggestions:users',  ttl: 60 },      // 1 min - highly dynamic
     [CACHE_TYPE.SUGGESTIONS_JOBS]:      { prefix: 'suggestions:jobs',   ttl: 120 },       // 2 min
-    [CACHE_TYPE.JOB_RECOMMENDATIONS]:   { prefix: 'job:recommendations', ttl: 172800  }, // 2 days
+    [CACHE_TYPE.JOB_RECOMMENDATIONS]:   { prefix: 'job:recommendations', ttl: 300  }, // 5 min - allows seeing new jobs faster
     [CACHE_TYPE.SAME_SCHOOL]:           { prefix: 'same:school',    ttl: 60 },                  // 1 min
     [CACHE_TYPE.SAME_COMPANY]:          { prefix: 'same:company',   ttl: 60 },                  // 1 min
     [CACHE_TYPE.FEED_PUBLIC]:           { prefix: 'feed:public',    ttl: 180 },                 // 3 min - frequent refresh
@@ -134,21 +134,48 @@ const invalidateCache = async (type, object_id, params = {}) => {
 /**
  * Invalidate all caches for a specific user (by pattern)
  */
+/**
+ * Non-blocking iterative SCAN to find all keys matching a pattern.
+ * Replaces the blocking KEYS command which can freeze Redis under high load.
+ */
+const scanKeys = async (client, pattern) => {
+    const keys = [];
+    let cursor = '0';
+    do {
+        const [newCursor, found] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
+        cursor = newCursor;
+        keys.push(...found);
+    } while (cursor !== '0');
+    return keys;
+};
+
 const invalidateUserCaches = async (object_id) => {
     try {
         const client = redis.getClient();
-        if (!client) {
-            return false;
-        }
-        
+        if (!client) return false;
         const pattern = `*:${object_id}*`;
-        const keys = await client.keys(pattern);
-        if (keys.length > 0) {
-            await client.del(...keys);
-        }
+        // CRITICAL FIX: Use SCAN instead of KEYS to avoid blocking Redis event loop
+        const keys = await scanKeys(client, pattern);
+        if (keys.length > 0) await client.del(...keys);
         return true;
     } catch (err) {
-        console.error(`Error invalidating user caches:`, err);
+        console.error('Error invalidating user caches:', err);
+        return false;
+    }
+};
+
+const invalidateAll = async (type) => {
+    try {
+        const client = redis.getClient();
+        if (!client) return false;
+        const config = get_key_n_ttl(type);
+        const pattern = `${config.prefix}:*`;
+        // CRITICAL FIX: Use SCAN instead of KEYS to avoid blocking Redis event loop
+        const keys = await scanKeys(client, pattern);
+        if (keys.length > 0) await client.del(...keys);
+        return true;
+    } catch (err) {
+        console.error(`Error invalidating all cache for ${type}:`, err);
         return false;
     }
 };
@@ -161,4 +188,5 @@ module.exports = {
     storeCache,
     invalidateCache,
     invalidateUserCaches,
+    invalidateAll,
 };

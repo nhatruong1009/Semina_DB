@@ -31,8 +31,9 @@ async function getProducer() {
  * Get or create a Kafka consumer
  * @param {string} groupId - consumer group id
  */
-async function getConsumer(groupId = 'default-group') {
+async function getConsumer(groupId = process.env.KAFKA_GROUP_ID || 'linkedin-clone-consumers') {
     if (!consumer) {
+        console.log(`[KAFKA] Initializing consumer with group: ${groupId}`);
         consumer = kafka.consumer({ groupId });
         await consumer.connect();
     }
@@ -57,6 +58,7 @@ async function produce(topic, message) {
     value = String(message);
   }
 
+  console.log(`[KAFKA] Producing to ${topic}`);
   return await p.send({
     topic,
     messages: [{
@@ -78,7 +80,7 @@ async function consume(topicOrMap, handler) {
     ? { [topicOrMap]: handler }
     : topicOrMap;
 
-  await c.subscribe({ topics: Object.keys(topicHandlers), fromBeginning: true });
+  await c.subscribe({ topics: Object.keys(topicHandlers), fromBeginning: false });
 
   await c.run({
     eachMessage: async ({ topic, message }) => {

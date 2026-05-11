@@ -15,12 +15,24 @@ const companiesRouter = require('./routes/company')
 const profileRouter = require('./routes/profile');
 const notificationsRouter = require('./routes/notifications');
 
+const http = require('http');
+const socketUtil = require('./datadriven/socket');
+
 const app = express();
+const server = http.createServer(app);
+
+// Initialize socket
+socketUtil.init(server);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Attach route groups
 app.use('/api/auth', authRouter);
@@ -48,6 +60,6 @@ const PORT = process.env.PORT || 9000;
 
 startDataCollectors(); // start kafka data driven
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

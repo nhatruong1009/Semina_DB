@@ -5,7 +5,7 @@ import { Country, City } from 'country-state-city';
 import JobCard from './JobCard';
 import '../styles/Jobs.css';
 
-const Jobs = () => {
+const Jobs = ({ navigateToProfile }) => {
   const [myJobs, setMyJobs] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -187,117 +187,130 @@ const Jobs = () => {
       <div className="jobs-container">
         <div className="section-header">
           <h2>💼 Job Management</h2>
-          <button onClick={() => { if(showForm) resetForm(); else setShowForm(true); }} className="post-job-btn">
-            {showForm ? 'Cancel' : '+ Post a Job'}
+          <button onClick={() => setShowForm(true)} className="post-job-btn">
+            + Post a Job
           </button>
         </div>
 
+        {/* Post/Edit Job Modal */}
         {showForm && (
-          <form onSubmit={handlePostJob} className="job-form animate-in">
-            <h3>{isEditing ? 'Edit Job' : 'Post a New Job'}</h3>
-            <div className="form-group">
-              <label>Job Title</label>
-              <input type="text" name="title" value={formData.title} placeholder="e.g. Senior React Developer" onChange={handleInputChange} required />
-            </div>
-            
-            {!isEditing && (
-              <div className="form-group">
-                <label>Company</label>
-                <select name="company" value={formData.company} onChange={handleInputChange} required>
-                  <option value="">Select Company</option>
-                  {myCompanies.map((c) => (
-                    <option key={c.company_id} value={c.company_id}>{c.name}</option>
-                  ))}
-                </select>
+          <div className="modal-overlay" onClick={resetForm}>
+            <div className="modal-content job-form-modal animate-pop" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>{isEditing ? 'Edit Job' : 'Post a New Job'}</h3>
+                <button className="close-btn" onClick={resetForm}>&times;</button>
               </div>
-            )}
+              <div className="modal-body">
+                <form id="job-post-form" onSubmit={handlePostJob} className="job-form">
+                  <div className="form-group">
+                    <label>Job Title *</label>
+                    <input type="text" name="title" value={formData.title} placeholder="e.g. Senior React Developer" onChange={handleInputChange} required />
+                  </div>
+                  
+                  {!isEditing && (
+                    <div className="form-group">
+                      <label>Company *</label>
+                      <select name="company" value={formData.company} onChange={handleInputChange} required>
+                        <option value="">Select Company</option>
+                        {myCompanies.map((c) => (
+                          <option key={c.company_id} value={c.company_id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Country</label>
-                <select name="country" value={formData.country} onChange={handleInputChange} required>
-                  <option value="">Select Country</option>
-                  {Country.getAllCountries().map((c) => (
-                    <option key={c.isoCode} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Country *</label>
+                      <select name="country" value={formData.country} onChange={handleInputChange} required>
+                        <option value="">Select Country</option>
+                        {Country.getAllCountries().map((c) => (
+                          <option key={c.isoCode} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.country && (
+                      <div className="form-group">
+                        <label>City *</label>
+                        <select name="city" value={formData.city} onChange={handleInputChange} required>
+                          <option value="">Select City</option>
+                          {City.getCitiesOfCountry(
+                            Country.getAllCountries().find(c => c.name === formData.country)?.isoCode
+                          ).map((city, idx) => (
+                            <option key={`${city.name}-${city.stateCode}-${idx}`} value={city.name}>{city.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Description *</label>
+                    <textarea name="description" value={formData.description} placeholder="Describe the role, requirements, and benefits..." onChange={handleInputChange} required rows="5" />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Salary Range (Optional)</label>
+                    <div className="salary-inputs-wrapper">
+                      <div className="salary-input-field">
+                        <input type="number" name="salaryMin" value={formData.salaryMin} placeholder="Min" onChange={handleInputChange} />
+                        <span className="input-helper">{formData.salaryMin >= 1000 ? `${(formData.salaryMin / 1000).toFixed(1)}k` : ''}</span>
+                      </div>
+                      <span className="separator">to</span>
+                      <div className="salary-input-field">
+                        <input type="number" name="salaryMax" value={formData.salaryMax} placeholder="Max" onChange={handleInputChange} />
+                        <span className="input-helper">{formData.salaryMax >= 1000 ? `${(formData.salaryMax / 1000).toFixed(1)}k` : ''}</span>
+                      </div>
+                      <select name="currency" value={formData.currency} className="currency-select" onChange={handleInputChange}>
+                        <option value="USD">USD</option>
+                        <option value="VND">VND</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                    </div>
+                    {formData.salaryMin && formData.salaryMax && Number(formData.salaryMax) <= Number(formData.salaryMin) && (
+                      <p className="validation-error">Max salary must be greater than min salary.</p>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Required Skills</label>
+                    <div className="skills-list">
+                      {formSkills.map(s => (
+                        <span key={s} className="skill-tag-premium">
+                          {s}
+                          <button type="button" className="skill-remove-btn" onClick={() => handleRemoveFormSkill(s)}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="skill-add-row-premium">
+                      <input
+                        type="text"
+                        className="premium-input-small"
+                        list="job-skills-list"
+                        value={skillInput}
+                        onChange={e => setSkillInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddFormSkill(); } }}
+                        placeholder="Type a skill..."
+                      />
+                      <datalist id="job-skills-list">
+                        {allSkills.filter(s => !formSkills.includes(s)).map(s => (
+                          <option key={s} value={s} />
+                        ))}
+                      </datalist>
+                      <button type="button" className="add-btn-premium" onClick={handleAddFormSkill}>Add</button>
+                    </div>
+                  </div>
+                </form>
               </div>
-
-              {formData.country && (
-                <div className="form-group">
-                  <label>City</label>
-                  <select name="city" value={formData.city} onChange={handleInputChange} required>
-                    <option value="">Select City</option>
-                    {City.getCitiesOfCountry(
-                      Country.getAllCountries().find(c => c.name === formData.country)?.isoCode
-                    ).map((city) => (
-                      <option key={city.name} value={city.name}>{city.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea name="description" value={formData.description} placeholder="Describe the role, requirements, and benefits..." onChange={handleInputChange} required />
-            </div>
-
-            <div className="form-group">
-              <label>Salary Range (Optional)</label>
-              <div className="salary-inputs-wrapper">
-                <div className="salary-input-field">
-                  <input type="number" name="salaryMin" value={formData.salaryMin} placeholder="Min (e.g. 10000000)" onChange={handleInputChange} />
-                  <span className="input-helper">{formData.salaryMin >= 1000000 ? `≈ ${(formData.salaryMin / 1000000).toFixed(1)}tr` : ''}</span>
-                </div>
-                <span className="separator">to</span>
-                <div className="salary-input-field">
-                  <input type="number" name="salaryMax" value={formData.salaryMax} placeholder="Max (e.g. 15000000)" onChange={handleInputChange} />
-                  <span className="input-helper">{formData.salaryMax >= 1000000 ? `≈ ${(formData.salaryMax / 1000000).toFixed(1)}tr` : ''}</span>
-                </div>
-                <select name="currency" value={formData.currency} className="currency-select" onChange={handleInputChange}>
-                  <option value="VND">VND</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
+              <div className="modal-footer">
+                <button type="button" className="cancel-btn-premium" onClick={resetForm}>Cancel</button>
+                <button type="submit" form="job-post-form" className="submit-btn-premium" disabled={formData.salaryMin && formData.salaryMax && Number(formData.salaryMax) <= Number(formData.salaryMin)}>
+                  {isEditing ? 'Update Job' : 'Post Job'}
+                </button>
               </div>
             </div>
-
-
-            <div className="form-group">
-              <label>Required Skills</label>
-              <div className="skills-list">
-                {formSkills.map(s => (
-                  <span key={s} className="skill-tag">
-                    {s}
-                    <button type="button" className="skill-remove-btn" onClick={() => handleRemoveFormSkill(s)}>×</button>
-                  </span>
-                ))}
-              </div>
-              <div className="skill-add-row">
-                <input
-                  type="text"
-                  className="skill-input"
-                  list="job-skills-list"
-                  value={skillInput}
-                  onChange={e => setSkillInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddFormSkill(); } }}
-                  placeholder="Type a skill and press Enter"
-                />
-                <datalist id="job-skills-list">
-                  {allSkills.filter(s => !formSkills.includes(s)).map(s => (
-                    <option key={s} value={s} />
-                  ))}
-                </datalist>
-                <button type="button" className="submit-btn" style={{padding:'6px 14px'}} onClick={handleAddFormSkill}>Add</button>
-              </div>
-            </div>
-
-            <div className="form-actions">
-              <button type="button" className="cancel-btn" onClick={resetForm}>Cancel</button>
-              <button type="submit" className="submit-btn">{isEditing ? 'Update Job' : 'Post Job'}</button>
-            </div>
-          </form>
+          </div>
         )}
 
         <div className="jobs-list">
@@ -330,9 +343,17 @@ const Jobs = () => {
               {applicants.length > 0 ? (
                 <div className="applicants-list">
                   {applicants.map(app => (
-                    <div key={app.application_id} className="applicant-item">
+                    <div 
+                      key={app.application_id} 
+                      className="applicant-item clickable-applicant"
+                      onClick={() => navigateToProfile(app.user_id || app.id)}
+                    >
                       <div className="app-avatar">
-                        {app.full_name?.charAt(0) || '?'}
+                        {app.avatar_url ? (
+                          <img src={app.avatar_url} alt={app.full_name} className="avatar-img-circle" />
+                        ) : (
+                          app.full_name?.charAt(0) || '?'
+                        )}
                       </div>
                       <div className="app-info">
                         <h4>{app.full_name || 'Anonymous'}</h4>

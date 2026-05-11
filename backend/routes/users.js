@@ -104,52 +104,73 @@ router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
 
 router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   try {
-    const cached = await cache.getCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId);
-    if (cached) return res.json(cached);
+    const userId = req.params.userId;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
+    const offset = (page - 1) * limit;
 
-    const records = await Neo4j.getJobRecommendations(req.params.userId);
-    const recs = records.map(r => r.toObject());
-
-    // Fallback: nếu user chưa có skills trong Neo4j → trả all open jobs
-    if (recs.length === 0) {
-      const result = await psql.Query(`
-        SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
-               c.name AS company_name, c.id AS company_id,
-               COUNT(ja.id)::int AS applicants_count
-        FROM jobs j
-        LEFT JOIN companies c ON j.company_id = c.id
-        LEFT JOIN job_applications ja ON j.id = ja.job_id
-        WHERE j.status = 'OPEN'
-        GROUP BY j.id, c.name, c.id
-        ORDER BY j.created_at DESC
-      `);
-      const fallback = result.rows.map(j => ({ ...j, matching_skills: 0 }));
-      cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, fallback);
-      return res.json(fallback);
-    }
-
-    // Enrich: lấy full job details từ PostgreSQL cho các job Neo4j recommend
-    const jobIds = recs.map(r => String(r.job_id));
-    const result = await psql.Query(`
-      SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+    // 1. Get all OPEN jobs from PostgreSQL with full details
+    const allJobsResult = await psql.Query(`
+      SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
              c.name AS company_name, c.id AS company_id,
+             p.full_name AS recruiter_name,
              COUNT(ja.id)::int AS applicants_count
       FROM jobs j
       LEFT JOIN companies c ON j.company_id = c.id
       LEFT JOIN job_applications ja ON j.id = ja.job_id
-      WHERE j.id = ANY($1::uuid[])
-      GROUP BY j.id, c.name, c.id
-    `, [jobIds]);
+      LEFT JOIN profiles p ON j.recruiter_id = p.user_id
+      WHERE j.status = 'OPEN' AND j.recruiter_id != $1
+      GROUP BY j.id, c.name, c.id, p.full_name
+      ORDER BY j.created_at DESC
+    `, [userId]);
+    const allJobs = allJobsResult.rows;
+    console.log(`[DEBUG JobRecs] Found ${allJobs.length} open jobs in Postgres`);
 
-    // Gắn matching_skills từ Neo4j vào từng job, sort theo số skill khớp
+    if (allJobs.length === 0) return res.json({ jobs: [], total: 0, page, limit, hasMore: false });
+
+    // 2. Get skill matching info from Neo4j
+    let recs = [];
+    try {
+        const recommendations = await Neo4j.getJobRecommendations(userId);
+        recs = recommendations.map(r => r.toObject());
+    } catch (e) {
+        console.error('[JobRecs] Neo4j skill match error:', e.message);
+    }
     const matchMap = Object.fromEntries(recs.map(r => [String(r.job_id), Number(r.matching_skills)]));
-    const enriched = result.rows
-      .map(j => ({ ...j, matching_skills: matchMap[j.id] ?? 0 }))
-      .sort((a, b) => b.matching_skills - a.matching_skills);
 
-    cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, enriched);
-    res.json(enriched);
+    // 3. Fetch required skills for all jobs from Neo4j
+    const jobIds = allJobs.map(j => j.id);
+    let skillsMap = {};
+    try {
+        const skillsRecords = await Neo4j.getMultipleJobsSkills(jobIds);
+        skillsMap = Object.fromEntries(
+            skillsRecords.map(r => {
+                const obj = r.toObject();
+                return [obj.job_id, obj.skills];
+            })
+        );
+    } catch (e) {
+        console.error('[JobRecs] Neo4j skills fetch error:', e.message);
+    }
+
+    // 4. Enrich + Sort by skill match then date
+    const enriched = allJobs.map(j => ({
+      ...j,
+      matching_skills: matchMap[String(j.id)] ?? 0,
+      required_skills_list: skillsMap[String(j.id)] ?? []
+    })).sort((a, b) => {
+      if (b.matching_skills !== a.matching_skills) return b.matching_skills - a.matching_skills;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    // 5. Apply pagination
+    const total = enriched.length;
+    const paginated = enriched.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+
+    res.json({ jobs: paginated, total, page, limit, hasMore });
   } catch (err) {
+    console.error('Error in job-recommendations:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -259,6 +280,26 @@ router.get('/all', [verifyToken], async (req, res) => {
 router.get('/skills/all', [verifyToken], async (req, res) => {
   try {
     const records = await Neo4j.getAllSkills();
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List all available schools (for dropdown in UI)
+router.get('/schools/all', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getAllSchools();
+    res.json(records.map(r => r.toObject()));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get schools of a user
+router.get('/:userId/schools', [verifyToken], async (req, res) => {
+  try {
+    const records = await Neo4j.getUserSchools(req.params.userId);
     res.json(records.map(r => r.toObject()));
   } catch (err) {
     res.status(500).json({ error: err.message });

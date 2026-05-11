@@ -10,6 +10,13 @@ const cache = require('../query/cache');
 router.post('/create', [verifyToken], async (req, res) => {
   try {
     const { title, company_id, location, description, salary_range } = req.body;
+    console.log('[DEBUG Job Create] Payload:', { title, company_id, location, description, salary_range, userId: req.userId });
+
+    if (!company_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(company_id)) {
+      return res.status(400).json({ error: 'Valid Company ID is required' });
+    }
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
     const createdAt = new Date();
     const records = await Jobs.Create(company_id, req.userId, title, location, description, salary_range, createdAt)
     if (!records || records.rowCount === 0) {
@@ -20,12 +27,12 @@ router.post('/create', [verifyToken], async (req, res) => {
       job_id: job.id,
       title: job.title,
       company_id: job.company_id,
+      recruiter_id: job.recruiter_id,
       salary_range: job.salary_range,
-      recruiter_id: req.userId,
     }).catch(err => console.error('Kafka publishJobEvent CREATE:', err));
     res.json(job);
   } catch (err) {
-    console.error('Error creating job:', err);
+    console.error('[DEBUG Job Create] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -80,6 +87,16 @@ router.get('/', [verifyToken], async (req, res) => {
   }
 });
 
+// Get jobs applied by current user
+router.get('/applied', [verifyToken], async (req, res) => {
+  try {
+    const result = await Jobs.GetApplied(req.userId);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get jobs managed by current user
 router.get('/my-jobs', [verifyToken], async (req, res) => {
   try {
@@ -89,6 +106,51 @@ router.get('/my-jobs', [verifyToken], async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Get a single job by ID
+router.get('/:id', [verifyToken], async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    // 1. Get job from PostgreSQL
+    const result = await psql.Query(`
+      SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
+             c.name AS company_name, c.id AS company_id,
+             p.full_name AS recruiter_name,
+             COUNT(ja.id)::int AS applicants_count
+      FROM jobs j
+      LEFT JOIN companies c ON j.company_id = c.id
+      LEFT JOIN job_applications ja ON j.id = ja.job_id
+      LEFT JOIN profiles p ON j.recruiter_id = p.user_id
+      WHERE j.id = $1
+      GROUP BY j.id, c.name, c.id, p.full_name
+    `, [jobId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const job = result.rows[0];
+
+    // 2. Get skills matching info from Neo4j
+    const recommendations = await Neo4j.getJobRecommendations(req.userId);
+    const recs = recommendations.map(r => r.toObject());
+    const match = recs.find(r => String(r.job_id) === String(jobId));
+    
+    // 3. Get required skills list
+    const skillsRes = await Neo4j.getJobSkills(jobId);
+    
+    res.json({
+      ...job,
+      matching_skills: match ? Number(match.matching_skills) : 0,
+      required_skills_list: skillsRes.map(s => s.toObject().name)
+    });
+  } catch (err) {
+    console.error('Error fetching job details:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Get applicants for a job
 router.get('/:id/applicants', [verifyToken], async (req, res) => {
@@ -175,6 +237,19 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
     const jobId = req.params.id;
     const userId = req.userId;
 
+    // Check if user is the recruiter of this job
+    const jobResult = await psql.Query('SELECT recruiter_id FROM jobs WHERE id = $1', [jobId]);
+    console.log('[DEBUG Apply] Check:', { 
+      jobId, 
+      userId, 
+      recruiterId: jobResult.rows[0]?.recruiter_id, 
+      match: String(jobResult.rows[0]?.recruiter_id) === String(userId) 
+    });
+    
+    if (jobResult.rowCount > 0 && String(jobResult.rows[0].recruiter_id) === String(userId)) {
+      return res.status(403).json({ error: "You cannot apply to your own job posting." });
+    }
+
     // Insert application (unique constraint prevents duplicates)
     const records = await Jobs.Apply(jobId, userId)
 
@@ -189,16 +264,6 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
     res.json(records.rows[0]);
   } catch (err) {
     console.error('Error applying to job:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get jobs applied by current user
-router.get('/applied', [verifyToken], async (req, res) => {
-  try {
-    const result = await Jobs.GetApplied(req.userId);
-    res.json(result.rows);
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

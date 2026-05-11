@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { notificationAPI } from '../api';
 import '../styles/Notifications.css';
 
-const Notifications = ({ navigateToPost, navigateToProfile }) => {
+const Notifications = ({ navigateToPost, navigateToProfile, setCurrentPage, openJobDetail }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,11 +38,15 @@ const Notifications = ({ navigateToPost, navigateToProfile }) => {
     const entity = notif.entity || notif.target;
     const actorId = (notif.actors && notif.actors.length > 0) ? notif.actors[0].id : (notif.actor?.id);
 
-    if (entity) {
+    if (entity && entity.id) {
       if (['POST_LIKE', 'POST_COMMENT', 'POST_SHARE'].includes(notif.type)) {
         navigateToPost(entity.id);
       } else if (['USER_FOLLOW', 'CONNECTION_REQUEST', 'CONNECTION_ACCEPT'].includes(notif.type)) {
         navigateToProfile(entity.id);
+      } else if (notif.type === 'COMPANY_HIRING') {
+        openJobDetail(entity.id);
+      } else if (notif.type === 'JOB_APPLY') {
+        setCurrentPage('jobs');
       }
     } else if (actorId) {
         navigateToProfile(actorId);

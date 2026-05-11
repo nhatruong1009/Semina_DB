@@ -5,6 +5,9 @@ const NotificationQuery = require('../query/notification');
 const UserQuery = require('../query/user');
 const mongosh = require('../init_db').mongosh;
 const JobQuery = require('../query/jobs')
+const socketUtil = require('./socket');
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const USER_CREATED = 'user.created';
 const POSTS_TOPIC = 'posts.events';
@@ -111,19 +114,22 @@ async function handleUserNotification(type, payload) {
       preview: `Profile of ${user.full_name}`
     };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    socketUtil.emitNotification(ownerId, result);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
 }
 
 async function handleJobNotification(type, payload) {
+  console.log(`[DEBUG ApplyNotif] Handling ${type} for job ${payload.job_id}`);
   try {
     const job_id = payload.job_id;
     const record = await JobQuery.GetByIds([job_id]);
     if (record.rowCount === 0) return;
     const job = record.rows[0];
     const ownerId = job.recruiter_id;
+    console.log('[DEBUG ApplyNotif] Job:', job.title, 'Owner:', ownerId, 'Candidate:', payload.user_id);
     if (ownerId === String(payload.user_id)) return;
     
     const userResult = await UserQuery.getUserProfileById(payload.user_id);
@@ -137,11 +143,12 @@ async function handleJobNotification(type, payload) {
     };
     
     const entity = {
-      id: payload.user_id,
-      type: "JOBS",
-      preview: `${user.full_name} apply to ${job.title}`
+      id: payload.job_id,
+      type: "JOB",
+      preview: `${user.full_name} applied to ${job.title}`
     };
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    socketUtil.emitNotification(ownerId, result);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
@@ -150,14 +157,16 @@ async function handleJobNotification(type, payload) {
 async function handleJobNotificationCreate(type, payload) {
   try{
     const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
+    console.log(`[DEBUG Notif] Suggesting users for job ${payload.job_id}:`, records?.length);
     if (!records) return;
     const user_ids = records.map(r => r.toObject().user_id);
+    console.log(`[DEBUG Notif] Notifying ${user_ids.length} users:`, user_ids);
     const userResult = await UserQuery.getUserProfileById(payload.recruiter_id);
     if (userResult.rowCount === 0) return;
     const user = userResult.rows[0];
 
     const entity = {
-      id: String(user.id),
+      id: payload.job_id,
       type: "JOBS",
       preview: `${user.full_name} is hiring ${payload.title}`
     };
@@ -170,7 +179,8 @@ async function handleJobNotificationCreate(type, payload) {
 
     for(let id of user_ids){
       if (id === user.id) continue;
-      await NotificationQuery.createNotification(String(id), actor, type, entity);
+      const result = await NotificationQuery.createNotification(String(id), actor, type, entity);
+      socketUtil.emitNotification(id, result);
     }
   }catch (err) {
     console.error("Error handling user notification:", err);
@@ -228,19 +238,19 @@ async function consumePostsEvents(payload) {
 }
 
 async function consumeJobsEvents(payload) {
+  console.log('[EVENT] Jobs Received:', payload.type, payload.job_id);
   try{
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
+      // RACE CONDITION FIX: Wait a bit for Neo4j index/consistency before querying suggestions
+      await sleep(200); 
       await handleJobNotificationCreate("COMPANY_HIRING", payload);
-      Neo4j.getBestUsersForJob(payload.job_id, 50)
-        .then(records => Promise.all(
-          records.map(r => cache.invalidateCache(
-            cache.CACHE_TYPE.JOB_RECOMMENDATIONS,
-            String(r.toObject().user_id)
-          ))
-        ))
-        .catch(e => console.error('cache invalidate job recs:', e));
+      
+      // OPTIMIZED CACHE: Only invalidate recommendations that might have changed
+      // For now, we still invalidate recommendations because it's global, 
+      // but we could target specific users based on skill match in production.
+      await cache.invalidateAll(cache.CACHE_TYPE.JOB_RECOMMENDATIONS);
       break;
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);
