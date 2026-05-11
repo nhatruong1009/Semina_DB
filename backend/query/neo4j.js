@@ -221,8 +221,10 @@ const authored = (userId, postId) =>
   neo4j.Query(
     `MERGE (u:User {user_id: $userId})
      MERGE (p:Post {post_id: $postId})
+     ON CREATE SET p.created_at = $now
+     ON MATCH SET p.created_at = CASE WHEN p.created_at IS NULL THEN $now ELSE p.created_at END
      MERGE (u)-[:AUTHORED]->(p)`,
-    { userId: String(userId), postId: String(postId) }
+    { userId: String(userId), postId: String(postId), now: new Date().toISOString() }
   );
 
 const likePost = (userId, postId) =>
@@ -259,8 +261,9 @@ const sharePost = (userId, postId) =>
   neo4j.Query(
     `MERGE (u:User {user_id: $userId})
      MERGE (p:Post {post_id: $postId})
+     ON CREATE SET p.created_at = $now
      MERGE (u)-[:SHARED]->(p)`,
-    { userId: String(userId), postId: String(postId) }
+    { userId: String(userId), postId: String(postId), now: new Date().toISOString() }
   );
 
 const deleteComment = (userId, postId, commentId) =>
@@ -279,12 +282,19 @@ const getPostInteractions = (postId) =>
 
 const getFeedByNetwork = (userId) =>
   neo4j.Query(
-    `MATCH (me:User {user_id: $userId})-[:FOLLOWS|CONNECTS]->(friend)
-     MATCH (friend)-[r:AUTHORED|SHARED]->(p:Post)
+    `MATCH (me:User {user_id: $userId})
+     OPTIONAL MATCH (me)-[:FOLLOWS|CONNECTS]-(friend:User)
+     WITH me, collect(DISTINCT friend) + me AS network
+     UNWIND network AS member
+     MATCH (member)-[r:AUTHORED|SHARED]->(p:Post)
      RETURN DISTINCT p.post_id AS post_id, 
-            CASE WHEN type(r) = 'AUTHORED' THEN 2 ELSE 1 END AS score
-     ORDER BY score DESC`,
-
+            p.created_at AS created_at,
+            CASE 
+              WHEN member.user_id = $userId THEN 3
+              WHEN type(r) = 'AUTHORED' THEN 2 
+              ELSE 1 
+            END AS score
+     ORDER BY p.created_at DESC, score DESC`,
     { userId: String(userId) }
   );
 

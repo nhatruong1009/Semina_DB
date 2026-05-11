@@ -63,6 +63,7 @@ const reactionSchema = new mongoose.Schema({
 
 // Indexes
 postSchema.index({ "author.id": 1 });
+postSchema.index({ visibility: 1, created_at: -1 });
 postSchema.index({ created_at: -1 });
 commentSchema.index({ post_id: 1 });
 reactionSchema.index({ post_id: 1 });

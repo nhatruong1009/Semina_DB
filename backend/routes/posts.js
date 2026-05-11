@@ -44,25 +44,32 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
  * Get feed posts
  */
 router.get('/feed', [verifyToken], async (req, res) => {
-    const start = Date.now(); // capture start time
-    is_cache = false;
+    const start = Date.now();
+    let is_cache = false;
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
     try {
         const ids = await cache.getCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
         if (ids !== null) {
             is_cache = true;
-            const records = await PostQuery.GetByIds(ids, req.userId);
+            const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
             res.json(records);
         } else {
-            const transformedFeed = await PostQuery.GetFeed(req.userId);
-            const Post_ids = transformedFeed.map(p=>p.id);
-            cache.storeCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global', Post_ids)
-            res.json(transformedFeed);
+            // If cache miss, fetch first 100 IDs to populate cache, but return only requested page
+            const transformedFeed = await PostQuery.GetFeed(req.userId, 100, 0);
+            const postIds = transformedFeed.map(p => p.id);
+            cache.storeCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global', postIds);
+            
+            const pagedResults = transformedFeed.slice(skip, skip + limit);
+            res.json(pagedResults);
         }
     } catch (err) {
         res.status(500).json({ error: err.message });
     } finally {
         const end = Date.now();
-        console.log(`get feed${is_cache ? "" :" no"} cache: ${end - start} ms`);
+        console.log(`get feed${is_cache ? "" : " no"} cache: ${end - start} ms (page: ${page}, limit: ${limit})`);
     }
 });
 
@@ -70,26 +77,30 @@ router.get('/feed', [verifyToken], async (req, res) => {
  * Get network feed (posts from people user follows/connects)
  */
 router.get('/feed/network', [verifyToken], async (req, res) => {
-    const start = Date.now(); // capture start time
-    is_cache = false;
+    const start = Date.now();
+    let is_cache = false;
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
     try {
         const ids = await cache.getCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
         if (ids !== null) {
             is_cache = true;
-            const records = await PostQuery.GetByIds(ids, req.userId);
+            const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
             res.json(records);
         } else {
             const records = await graphQuery.getFeedByNetwork(String(req.userId));
             const postIds = records.map(r => r.toObject().post_id);
-            const posts = await PostQuery.GetByIds(postIds, req.userId);
-            cache.storeCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId, postIds)
+            const posts = await PostQuery.GetByIds(postIds, req.userId, limit, skip);
+            cache.storeCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId, postIds);
             res.json(posts);
         }
     } catch (err) {
         res.status(500).json({ error: err.message });
     } finally {
         const end = Date.now();
-        console.log(`get feed${is_cache ? "" :" no"} cache: ${end - start} ms`);
+        console.log(`get network feed${is_cache ? "" : " no"} cache: ${end - start} ms (page: ${page}, limit: ${limit})`);
     }
 });
 

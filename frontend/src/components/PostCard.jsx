@@ -199,15 +199,21 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
 
       <div className="post-actions-row">
         <button onClick={handleLike} className={`action-btn ${isLiked ? 'active' : ''}`}>
-          <span className="icon yellow">👍</span>
+          <svg viewBox="0 0 24 24" className="icon">
+            <path d="M19.46,11l-3.91-3.91a7,7,0,0,1-1.69-2.74l-.49-1.47A2.76,2.76,0,0,0,10.76,1a2.75,2.75,0,0,0-2.43,1.57L7.74,4.24a5,5,0,0,1-.31,2.48L6,11H1V22H21a3,3,0,0,0,3-3V14.54A3.7,3.7,0,0,0,19.46,11ZM7,20H3V13H7ZM22,19a1,1,0,0,1-1,1H9V12.41l1.43-1.43a3,3,0,0,0,.71-1.53L12.39,6a7,7,0,0,1,.43-2.12.74.74,0,0,1,.15-.24.75.75,0,0,1,.67-.41.76.76,0,0,1,.7.47l.49,1.47a9,9,0,0,0,2.14,3.47l3.91,3.91A1.7,1.7,0,0,1,22,14.54Z" />
+          </svg>
           <span className="label">{isLiked ? 'Unlike' : 'Like'}</span>
         </button>
         <button onClick={() => setShowComments(!showComments)} className="action-btn">
-          <span className="icon">💬</span>
+          <svg viewBox="0 0 24 24" className="icon">
+            <path d="M21,2H3A1,1,0,0,0,2,3V16a1,1,0,0,0,1,1h4.29l3.15,3.15a1.2,1.2,0,0,0,1.12.35,1.21,1.21,0,0,0,1-.95L13,17h8a1,1,0,0,0,1-1V3A1,1,0,0,0,21,2ZM20,15H12.34a1,1,0,0,0-.73.31L10.32,16.6l-.32-3.6a1,1,0,0,0-1-.91h-6V4H20Z" />
+          </svg>
           <span className="label">Comment</span>
         </button>
         <button onClick={handleShare} className="action-btn share-btn">
-          <span className="icon grey">🔗</span>
+          <svg viewBox="0 0 24 24" className="icon">
+            <path d="M23.12,9.91,19,5.79a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L20.17,9.8H7.36a3,3,0,0,0-3,3V20a1,1,0,0,0,2,0V12.8a1,1,0,0,1,1-1h12.8l-2.58,2.59a1,1,0,0,0,0,1.42,1,1,0,0,0,1.41,0l4.13-4.12A1.41,1.41,0,0,0,23.12,9.91Z" />
+          </svg>
           <span className="label">Share</span>
         </button>
       </div>
@@ -251,8 +257,8 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
                   </div>
                   <div className="comment-actions">
                     <button className="sub-action-btn">Like</button>
-                    <span className="divider">|</span>
-                    <button className="sub-action-btn">Reply</button>
+                    <span className="divider"></span>
+                    <button className="sub-action-btn" onClick={() => setCommentText(`@${comment.userName} `)}>Reply</button>
                   </div>
                 </div>
               </div>
