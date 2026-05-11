@@ -6,7 +6,6 @@ const Neo4j = require('../query/neo4j');
 const psql = require('../data/postgresql');
 const { publishJobEvent, JOBS_EVENT_TYPE } = require('../datadriven/data_collector');
 const cache = require('../query/cache');
-const Neo4j = require('../query/neo4j');
 
 router.post('/create', [verifyToken], async (req, res) => {
   try {
