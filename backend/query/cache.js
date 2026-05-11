@@ -19,7 +19,7 @@ const CACHE_TYPE = {
 const CACHE_CONFIG = {
     [CACHE_TYPE.SUGGESTIONS_USERS]:     { prefix: 'suggestions:users',  ttl: 60 },      // 1 min - highly dynamic
     [CACHE_TYPE.SUGGESTIONS_JOBS]:      { prefix: 'suggestions:jobs',   ttl: 120 },       // 2 min
-    [CACHE_TYPE.JOB_RECOMMENDATIONS]:   { prefix: 'job:recommendations', ttl: 120 }, // 2 min
+    [CACHE_TYPE.JOB_RECOMMENDATIONS]:   { prefix: 'job:recommendations', ttl: 172800  }, // 2 days
     [CACHE_TYPE.SAME_SCHOOL]:           { prefix: 'same:school',    ttl: 60 },                  // 1 min
     [CACHE_TYPE.SAME_COMPANY]:          { prefix: 'same:company',   ttl: 60 },                  // 1 min
     [CACHE_TYPE.FEED_PUBLIC]:           { prefix: 'feed:public',    ttl: 180 },                 // 3 min - frequent refresh

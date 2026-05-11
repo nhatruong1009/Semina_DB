@@ -266,6 +266,73 @@ const getConnections = (userId) =>
     { userId: String(userId) }
   );
 
+const getSuggestJobsForUser = (userId, limit = 10, exclude = []) =>
+  neo4j.Query(
+    `
+    // skill-based matches
+    MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
+    WHERE j.status = 'OPEN' AND NOT j.job_id IN $exclude
+    WITH j, count(s) AS matching_skills
+    RETURN j.job_id AS job_id,
+           j.title AS title,
+           j.company_id AS company_id,
+           j.salary_min AS salary_min,
+           j.salary_max AS salary_max,
+           j.salary_currency AS salary_currency,
+           matching_skills
+    ORDER BY matching_skills DESC
+    LIMIT $limit
+
+    UNION
+
+    // fallback jobs if not enough matches (randomized)
+    MATCH (j2:Job)
+    WHERE j2.status = 'OPEN' AND NOT j2.job_id IN $exclude
+    WITH j2
+    ORDER BY rand()
+    RETURN j2.job_id AS job_id,
+           j2.title AS title,
+           j2.company_id AS company_id,
+           j2.salary_min AS salary_min,
+           j2.salary_max AS salary_max,
+           j2.salary_currency AS salary_currency,
+           0 AS matching_skills
+    LIMIT $limit
+    `,
+    { userId: String(userId), limit: parseInt(limit), exclude }
+  );
+
+const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
+  neo4j.Query(
+    `
+    // skill-based matches
+    MATCH (j:Job {job_id: $jobId})-[:REQUIRES_SKILL]->(s:Skill)<-[:HAS_SKILL]-(u:User)
+    WHERE NOT u.user_id IN $exclude
+    WITH u, count(s) AS matching_skills
+    RETURN u.user_id AS user_id,
+           u.name AS name,
+           u.headline AS headline,
+           matching_skills
+    ORDER BY matching_skills DESC
+    LIMIT $limit
+
+    UNION
+
+    // fallback users if not enough matches (randomized)
+    MATCH (u2:User)
+    WHERE NOT u2.user_id IN $exclude
+    WITH u2
+    ORDER BY rand()
+    RETURN u2.user_id AS user_id,
+           u2.name AS name,
+           u2.headline AS headline,
+           0 AS matching_skills
+    LIMIT $limit
+    `,
+    { jobId: String(jobId), limit: parseInt(limit), exclude }
+  );
+
+
 module.exports = {
 
   createUser,
@@ -295,5 +362,7 @@ module.exports = {
   getFollowers,
   getFollowing,
   getConnections,
+  getSuggestJobsForUser,
+  getSuggestUsersForJob,
 };
 
