@@ -80,6 +80,7 @@ const Notifications = ({ navigateToPost, navigateToProfile }) => {
       case 'CONNECTION_REQUEST': return 'sent you a connection request';
       case 'CONNECTION_ACCEPT': return 'accepted your connection request';
       case 'JOB_RECOMMENDATION': return 'recommended a job for you';
+      case 'JOB_APPLY': return 'applied for the position you are hiring for.';
       case 'COMPANY_HIRING': return 'is hiring';
       default: return 'interacted with you';
     }
