@@ -178,14 +178,17 @@ async function handleJobNotificationCreate(type, payload) {
 }
 
 async function consumeUsersEvents(payload) {
+  console.log(`[EVENT] Users: ${payload.type}`, payload);
   try {
     switch (payload.type) {
       case USERS_EVENT_TYPE.FOLLOW:
         await Neo4j.createFollow(payload.user_id, payload.target_user_id);
+        await cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, payload.user_id);
         await handleUserNotification("USER_FOLLOW", payload);
         break;
       case USERS_EVENT_TYPE.CONNECT:
         await Neo4j.createConnect(payload.user_id, payload.target_user_id);
+        await cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, payload.user_id);
         await handleUserNotification("CONNECTION_REQUEST", payload);
         break;
     }
@@ -194,6 +197,7 @@ async function consumeUsersEvents(payload) {
   }
 }
 async function consumePostsEvents(payload) {
+  console.log(`[EVENT] Posts: ${payload.type}`, payload);
   try{
   switch (payload.type) {
     case POSTS_EVENT_TYPE.CREATE:
@@ -249,6 +253,7 @@ async function consumeJobsEvents(payload) {
 }
 
 async function startDataCollectors() {
+  console.log('Starting Kafka data collectors...');
   await consume({
     [USER_CREATED]: consumeUserCreated,
     [POSTS_TOPIC]: consumePostsEvents,

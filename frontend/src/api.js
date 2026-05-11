@@ -28,7 +28,7 @@ export const userAPI = {
 
 export const postAPI = {
   createPost: (content, media) => API.post('/posts/create', { content, media }),
-  getFeed: () => API.get('/posts/feed'),
+  getFeed: (page = 1, limit = 10) => API.get(`/posts/feed?page=${page}&limit=${limit}`),
   getPostById: (id) => API.get(`/posts/${id}`),
   likePost: (id) => API.post(`/posts/${id}/like`),
   unlikePost: (id) => API.post(`/posts/${id}/unlike`),
@@ -87,7 +87,7 @@ export const networkAPI = {
   follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
   unfollow: (followeeId) => API.post('/users/unfollow', { followeeId }),
   getPostInteractions: (postId) => API.get(`/posts/${postId}/interactions`),
-  getNetworkFeed: () => API.get('/posts/feed/network'),
+  getNetworkFeed: (page = 1, limit = 10) => API.get(`/posts/feed/network?page=${page}&limit=${limit}`),
   getFollowers: (userId) => API.get(`/users/followers/${userId}`),
   getFollowing: (userId) => API.get(`/users/following/${userId}`),
   getConnections: (userId) => API.get(`/users/connections/${userId}`),

@@ -25,42 +25,58 @@ const get_commentsList = async (postId, update = false, commentsLimit = 3, comme
 
 const transformPostInternal = async (post, { update = false, commentsLimit = 3, commentsSkip = 0, currentUserId = null } = {}) => {
     const p = JSON.parse(JSON.stringify(post));
-    const postId = p._id || p.id;
+    const postId = (p._id || p.id).toString();
 
-    if (update === false){
-        const cached = await cache.getCache(cache.CACHE_TYPE.POST_CONTENT, postId)
-        if (cached) {
-            return cached;
-        }
+    let cachedData;
+    if (update === false) {
+        cachedData = await cache.getCache(cache.CACHE_TYPE.POST_CONTENT, postId);
     }
-    // Fetch related data from separate collections
-    const reactions = await mongosh.Reaction.find({ post_id: postId });
-    const likes = reactions.filter(r => r.type === 'like');
-    const didLike = currentUserId ? likes.some(r => r.user_id === currentUserId) : false;
-    const commentsList = await get_commentsList(postId, update, commentsLimit, commentsSkip);
 
-    const transformedFeed = {
-        id: postId,
-        author: {
-            ...p.author,
-            title: p.author.headline || '',
-            profileImage: p.author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.author.name || 'User')}&background=0a66c2&color=fff`
-        },
-        content: p.content,
-        images: Array.isArray(p.content?.media) 
-            ? p.content.media.filter(m => m.type === 'image').map(m => m.url) 
-            : (p.images || []),
-        image: p.content?.media?.[0]?.url || p.image || '',
-        didLike: didLike,
-        likesCount: p.stats?.likes || 0,
-        commentsCount: p.stats?.comments || 0,
-        sharesCount: p.stats?.shares || 0,
-        comments: commentsList,
-        shares: p.stats?.shares || 0,
-        createdAt: p.created_at || p.createdAt
-    };
-    await cache.storeCache(cache.CACHE_TYPE.POST_CONTENT, postId, transformedFeed);
-    return transformedFeed
+    let basePost;
+    if (cachedData) {
+        basePost = cachedData;
+    } else {
+        // Fetch related data from separate collections
+        const reactions = await mongosh.Reaction.find({ post_id: postId });
+        const likesCount = reactions.filter(r => r.type === 'like').length;
+        const commentsList = await get_commentsList(postId, update, commentsLimit, commentsSkip);
+
+        basePost = {
+            id: postId,
+            author: {
+                ...p.author,
+                title: p.author.headline || '',
+                profileImage: p.author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.author.name || 'User')}&background=0a66c2&color=fff`
+            },
+            content: p.content,
+            images: Array.isArray(p.content?.media) 
+                ? p.content.media.filter(m => m.type === 'image').map(m => m.url) 
+                : (p.images || []),
+            image: p.content?.media?.[0]?.url || p.image || '',
+            likesCount: p.stats?.likes || likesCount,
+            commentsCount: p.stats?.comments || 0,
+            sharesCount: p.stats?.shares || 0,
+            comments: commentsList,
+            shares: p.stats?.shares || 0,
+            createdAt: p.created_at || p.createdAt
+        };
+        // Store base post in cache (WITHOUT user-specific state)
+        await cache.storeCache(cache.CACHE_TYPE.POST_CONTENT, postId, basePost);
+    }
+
+    // Always create a fresh clone for the response to avoid shared state mutations
+    const result = { ...basePost };
+
+    // Calculate user-specific state
+    if (currentUserId) {
+        const uId = currentUserId.toString();
+        const reaction = await mongosh.Reaction.findOne({ post_id: postId, user_id: uId, type: 'like' });
+        result.didLike = !!reaction;
+    } else {
+        result.didLike = false;
+    }
+
+    return result;
 };
 
 /**
@@ -115,9 +131,13 @@ const SaveContent = async (userId, text, media) => {
  */
 
 
-const GetFeed = async (userId) => {
-    const posts = await mongosh.Post.find({ visibility: 'public' }).sort({ created_at: -1 }).limit(500);
-    console.log(`[DEBUG GetFeed] Found ${posts.length} posts in DB. Top: ${posts[0]?._id}`);
+const GetFeed = async (userId, limit = 10, skip = 0) => {
+    const posts = await mongosh.Post.find({ visibility: 'public' })
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit);
+    
+    console.log(`[DEBUG GetFeed] Found ${posts.length} posts in DB (skip: ${skip}, limit: ${limit}).`);
 
     const transformedPosts = [];
     for (const p of posts) {
@@ -126,7 +146,6 @@ const GetFeed = async (userId) => {
             transformedPosts.push(transformed);
         } catch (err) {
             console.error(`ERROR: Failed to transform post ${p._id}:`, err);
-            // Skip broken posts instead of failing the whole feed
         }
     }
     return transformedPosts;
@@ -139,29 +158,24 @@ const LikePost = async (postId, userId) => {
     const pId = postId.toString();
     const uId = userId.toString();
 
-    await mongosh.Post.updateOne(
-        { _id: postId, "stats.likes": { $not: { $type: "number" } } },
-        { $set: { "stats.likes": 0 } }
+    // Idempotent like: only increment if not already liked
+    const reaction = await mongosh.Reaction.findOneAndUpdate(
+        { post_id: pId, user_id: uId, type: 'like' },
+        { $setOnInsert: { post_id: pId, user_id: uId, type: 'like', created_at: new Date() } },
+        { upsert: true, new: false } // Returns doc BEFORE update
     );
 
-    try {
-        await mongosh.Reaction.findOneAndUpdate(
-            { post_id: pId, user_id: uId, type: 'like' },
-            { post_id: pId, user_id: uId, type: 'like', created_at: new Date() },
-            { upsert: true }
+    if (!reaction) {
+        await mongosh.Post.findByIdAndUpdate(
+            postId,
+            { 
+                $inc: { "stats.likes": 1 },
+                $set: { updated_at: new Date() }
+            }
         );
-    } catch (e) {
-        if (e.code !== 11000) throw e;
     }
     
-    const updatedPost = await mongosh.Post.findByIdAndUpdate(
-        postId,
-        { 
-            $inc: { "stats.likes": 1 },
-            $set: { updated_at: new Date() }
-        },
-        { new: true }
-    );
+    const updatedPost = await mongosh.Post.findById(postId);
     return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
@@ -172,21 +186,20 @@ const UnlikePost = async (postId, userId) => {
     const pId = postId.toString();
     const uId = userId.toString();
 
-    await mongosh.Post.updateOne(
-        { _id: postId, "stats.likes": { $not: { $type: "number" } } },
-        { $set: { "stats.likes": 0 } }
-    );
-
-    await mongosh.Reaction.deleteOne({ post_id: pId, user_id: uId, type: 'like' });
+    // Idempotent unlike: only decrement if reaction existed
+    const reaction = await mongosh.Reaction.findOneAndDelete({ post_id: pId, user_id: uId, type: 'like' });
     
-    const updatedPost = await mongosh.Post.findByIdAndUpdate(
-        postId,
-        { 
-            $inc: { "stats.likes": -1 },
-            $set: { updated_at: new Date() }
-        },
-        { new: true }
-    );
+    if (reaction) {
+        await mongosh.Post.findByIdAndUpdate(
+            postId,
+            { 
+                $inc: { "stats.likes": -1 },
+                $set: { updated_at: new Date() }
+            }
+        );
+    }
+    
+    const updatedPost = await mongosh.Post.findById(postId);
     return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
@@ -253,9 +266,17 @@ const SharePost = async (postId, userId) => {
     return await transformPostInternal(updatedPost, {update: true, currentUserId: uId});
 }
 
-const GetByIds = async (postIds, userId) => {
-    if (!postIds.length) return [];
-    const posts = await mongosh.Post.find({ _id: { $in: postIds } }).sort({ created_at: -1 });
+const GetByIds = async (postIds, userId, limit, skip) => {
+    if (!postIds || postIds.length === 0) return [];
+    
+    let idsToFetch = postIds;
+    if (limit !== undefined && skip !== undefined) {
+        idsToFetch = postIds.slice(skip, skip + limit);
+    }
+    
+    if (idsToFetch.length === 0) return [];
+
+    const posts = await mongosh.Post.find({ _id: { $in: idsToFetch } }).sort({ created_at: -1 });
     return await Promise.all(posts.map(p => transformPostInternal(p, {currentUserId: userId.toString()})));
 }
 
