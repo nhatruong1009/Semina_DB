@@ -14,7 +14,7 @@ const createNotification = async (userId, actor, type, entity) => {
         };
 
         const update = {
-            $addToSet: { actors: { $each: [actor], $slice: -3 } }, // Keep only the 3 most recent actors
+            $push: { actors: { $each: [actor], $slice: -3 } },
             $inc: { count: 1 },
             $set: { updated_at: new Date(), entity: entity }, // Update timestamp and ensure entity data is fresh
             $setOnInsert: { created_at: new Date(), is_read: false }
