@@ -31,7 +31,7 @@ async function getProducer() {
  * Get or create a Kafka consumer
  * @param {string} groupId - consumer group id
  */
-async function getConsumer(groupId = 'backend-group-1') {
+async function getConsumer(groupId = 'default-group') {
     if (!consumer) {
         consumer = kafka.consumer({ groupId });
         await consumer.connect();
