@@ -68,4 +68,47 @@ commentSchema.index({ post_id: 1 });
 reactionSchema.index({ post_id: 1 });
 reactionSchema.index({ post_id: 1, user_id: 1 }, { unique: true });
 
-module.exports = { postSchema, commentSchema, reactionSchema }
+// --- NOTIFICATION SCHEMA ---
+const notificationActorSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  avatar: { type: String }
+});
+
+const notificationTargetSchema = new mongoose.Schema({
+  id: { type: String },
+  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"] },
+  preview: { type: String }
+});
+
+const notificationSchema = new mongoose.Schema({
+  user_id: { type: String, required: true },
+  actor: { type: notificationActorSchema, required: true },
+  type: { 
+    type: String, 
+    enum: [
+      "POST_LIKE", "POST_COMMENT", "POST_SHARE", 
+      "USER_FOLLOW", "CONNECTION_REQUEST", "CONNECTION_ACCEPT",
+      "MESSAGE_RECEIVE", "JOB_RECOMMENDATION", "COMPANY_HIRING"
+    ],
+    required: true 
+  },
+  target: { type: notificationTargetSchema },
+  is_read: { type: Boolean, default: false },
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now }
+});
+
+notificationSchema.index({ user_id: 1, created_at: -1 });
+notificationSchema.index({ user_id: 1, is_read: 1 });
+notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 });
+
+// Compound unique index to prevent exact duplicates (actor doing same action on same target for same user)
+// We include created_at or a time-based bucket if we want to allow repeats after some time.
+// For now, let's just prevent duplicates for the same unread notification.
+notificationSchema.index(
+  { user_id: 1, "actor.id": 1, type: 1, "target.id": 1, is_read: 1 },
+  { unique: true, partialFilterExpression: { is_read: false } }
+);
+
+module.exports = { postSchema, commentSchema, reactionSchema, notificationSchema }

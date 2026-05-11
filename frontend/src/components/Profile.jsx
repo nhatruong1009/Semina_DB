@@ -63,6 +63,9 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
   const [connections, setConnections] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [showModalType, setShowModalType] = useState(null);
+  const [isEditingOpenToWork, setIsEditingOpenToWork] = useState(false);
+  const [openToWorkRoles, setOpenToWorkRoles] = useState('Product Designer, UX Designer roles');
+  const [openToWorkInput, setOpenToWorkInput] = useState('');
 
   useEffect(() => {
     if (targetUserId) {
@@ -177,7 +180,7 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
               <h1 className="profile-name">{profile.full_name}</h1>
               <p className="profile-headline-text">{profile.headline || 'No headline set'}</p>
               <p className="profile-location-text">
-                {profile.location || 'Location not set'} • <span className="stat-link">{connections.length} connections</span>
+                {profile.location || 'Location not set'} • <span className="stat-link clickable-stat" onClick={() => setShowModalType('followers')} style={{cursor: 'pointer'}}>{followers.length} followers</span>
               </p>
             </div>
 
@@ -185,7 +188,7 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
               {isMe ? (
                 <>
                   <button className="btn-connect" onClick={() => setIsEditing(true)}>Open to</button>
-                  <button className="btn-message" onClick={() => setIsEditing(true)}>Add profile section</button>
+                  <button className="btn-message" onClick={() => { setOpenToWorkInput(openToWorkRoles); setIsEditingOpenToWork(true); }}>Add profile section</button>
                   <button className="btn-more">...</button>
                 </>
               ) : (
@@ -204,7 +207,7 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
 
             <div className="open-to-work-box">
               <h4>Open to work</h4>
-              <p>Product Designer, UX Designer roles</p>
+              <p>{openToWorkRoles}</p>
             </div>
           </div>
         </div>
@@ -353,7 +356,7 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Intro Modal */}
       {isEditing && (
         <div className="modal-overlay" onClick={() => setIsEditing(false)}>
           <div className="modal-content profile-edit-modal animate-pop" onClick={e => e.stopPropagation()}>
@@ -391,6 +394,35 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
             </div>
             <div className="modal-footer">
               <button type="submit" form="edit-profile-form" className="save-btn">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Open To Work Modal */}
+      {isEditingOpenToWork && (
+        <div className="modal-overlay" onClick={() => setIsEditingOpenToWork(false)}>
+          <div className="modal-content profile-edit-modal animate-pop" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add profile section: Open to work</h3>
+              <button className="close-btn" onClick={() => setIsEditingOpenToWork(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <form id="edit-open-to-work-form" onSubmit={(e) => { e.preventDefault(); setOpenToWorkRoles(openToWorkInput); setIsEditingOpenToWork(false); }} className="edit-profile-form">
+                <div className="form-group">
+                  <label>Job titles you're open to</label>
+                  <input 
+                    type="text" 
+                    value={openToWorkInput} 
+                    onChange={(e) => setOpenToWorkInput(e.target.value)} 
+                    placeholder="e.g. Product Designer, Software Engineer" 
+                    required 
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="submit" form="edit-open-to-work-form" className="save-btn">Save</button>
             </div>
           </div>
         </div>

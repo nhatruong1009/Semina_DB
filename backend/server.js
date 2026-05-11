@@ -13,6 +13,7 @@ const adminCompaniesRouter = require('./routes/adminCompanies');
 const companiesRouter = require('./routes/company')
 
 const profileRouter = require('./routes/profile');
+const notificationsRouter = require('./routes/notifications');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/upload', uploadsRouter);
 app.use('/api/admin', adminCompaniesRouter);
 app.use('/api/companies', companiesRouter);
 app.use('/api/profiles', profileRouter);
+app.use('/api/notifications', notificationsRouter);
 app.use('/uploads', express.static('uploads'));
 
 
