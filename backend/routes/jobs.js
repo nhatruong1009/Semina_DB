@@ -66,7 +66,13 @@ router.get('/', [verifyToken], async (req, res) => {
       await cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.userId, job_ids, {date:dateStr})
     }
 
-    const result = await Jobs.GetByIds(job_ids);
+    const validIds = (job_ids || []).filter(id => 
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    );
+    
+    if (validIds.length === 0) return res.json([]);
+    
+    const result = await Jobs.GetByIds(validIds);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching jobs:', err);
