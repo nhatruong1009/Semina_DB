@@ -545,3 +545,21 @@
     grid-template-columns: 1fr;
   }
 }
+
+.skills-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.skill-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #e8f0fe; color: #1a73e8;
+  padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 500;
+}
+.skill-remove-btn {
+  background: none; border: none; cursor: pointer;
+  color: #888; font-size: 16px; line-height: 1; padding: 0 2px;
+}
+.skill-remove-btn:hover { color: #e53935; }
+.skill-add-row { display: flex; gap: 8px; margin: 8px 0; }
+.skill-input {
+  flex: 1; padding: 6px 12px; border: 1px solid #ddd;
+  border-radius: 8px; font-size: 14px;
+}
+.empty-skills { color: #888; font-size: 14px; margin: 8px 0; }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import { profileAPI, networkAPI, jobAPI } from '../api';
+import { profileAPI, networkAPI, jobAPI, skillAPI } from '../api';
 import { AuthContext } from '../AuthContext';
 import '../styles/Profile.css';
 
@@ -62,6 +62,10 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
   const [following, setFollowing] = useState([]);
   const [connections, setConnections] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [showSkillInput, setShowSkillInput] = useState(false);
   const [showModalType, setShowModalType] = useState(null);
   const [isEditingOpenToWork, setIsEditingOpenToWork] = useState(false);
   const [openToWorkRoles, setOpenToWorkRoles] = useState('Product Designer, UX Designer roles');
@@ -71,11 +75,41 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
     if (targetUserId) {
       fetchProfile();
       fetchSocialStats();
+      fetchSkills();
       if (String(currentUser?.id) === String(targetUserId)) {
         fetchAppliedJobs();
+        skillAPI.getAllSkills().then(res => setAllSkills(res.data)).catch(() => {});
       }
     }
   }, [targetUserId, currentUser]);
+
+  const fetchSkills = async () => {
+    try {
+      const res = await skillAPI.getUserSkills(targetUserId);
+      setSkills(res.data);
+    } catch (err) {}
+  };
+
+  const handleAddSkill = async (name) => {
+    if (!name.trim()) return;
+    try {
+      await skillAPI.addSkill(targetUserId, name.trim());
+      setSkillInput('');
+      setShowSkillInput(false);
+      fetchSkills();
+    } catch (err) {
+      console.error('Add skill failed:', err);
+    }
+  };
+
+  const handleRemoveSkill = async (skillName) => {
+    try {
+      await skillAPI.removeSkill(targetUserId, skillName);
+      fetchSkills();
+    } catch (err) {
+      console.error('Remove skill failed:', err);
+    }
+  };
 
   const fetchAppliedJobs = async () => {
     try {
@@ -262,6 +296,48 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
                 <span key={idx}>{line}<br /></span>
               ))
             ) : "Senior Product Designer with over 8 years of experience building human-centered digital experiences at scale. My expertise lies at the intersection of UI/UX design, design systems, and product strategy. I am passionate about solving complex user problems through elegant, intuitive design solutions that drive business growth and user satisfaction."}
+          </div>
+        </div>
+
+        {/* Skills Section */}
+        <div className="profile-card">
+          <div className="section-header">
+            <h3>Skills</h3>
+            {isMe && (
+              <button className="icon-btn" onClick={() => setShowSkillInput(v => !v)}>
+                <PlusIcon />
+              </button>
+            )}
+          </div>
+
+          {isMe && showSkillInput && (
+            <div className="skill-add-row">
+              <input
+                list="skill-suggestions"
+                value={skillInput}
+                onChange={e => setSkillInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddSkill(skillInput)}
+                placeholder="Type a skill and press Enter..."
+                className="skill-input"
+              />
+              <datalist id="skill-suggestions">
+                {allSkills
+                  .filter(s => !skills.some(us => us.name === s.name))
+                  .map(s => <option key={s.skill_id} value={s.name} />)}
+              </datalist>
+              <button className="save-btn" onClick={() => handleAddSkill(skillInput)}>Add</button>
+            </div>
+          )}
+
+          <div className="skills-list">
+            {skills.length > 0 ? skills.map(s => (
+              <span key={s.skill_id || s.name} className="skill-tag">
+                {s.name}
+                {isMe && (
+                  <button className="skill-remove-btn" onClick={() => handleRemoveSkill(s.name)}>×</button>
+                )}
+              </span>
+            )) : <p className="empty-skills">No skills added yet.</p>}
           </div>
         </div>
 

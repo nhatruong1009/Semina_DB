@@ -64,6 +64,13 @@ export const profileAPI = {
 
 
 
+export const skillAPI = {
+  getAllSkills: () => API.get('/users/skills/all'),
+  getUserSkills: (userId) => API.get(`/users/${userId}/skills`),
+  addSkill: (userId, name) => API.post(`/users/${userId}/skills`, { name }),
+  removeSkill: (userId, skillName) => API.delete(`/users/${userId}/skills/${encodeURIComponent(skillName)}`),
+};
+
 export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
   getSuggestionsAll: (userId, params) => API.get(`/users/suggestions-all/${userId}`, { params }),
