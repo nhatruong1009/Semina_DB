@@ -11,9 +11,12 @@ beforeEach(() => {
 describe('getBestJobsForUser', () => {
   test('passes userId as string and limit as int', async () => {
     await Neo4j.getBestJobsForUser(42, 5);
-    const [, params] = mockQuery.mock.calls[0];
+    const [query, params] = mockQuery.mock.calls[0];
     expect(params.userId).toBe('42');
     expect(params.limit).toBe(5);
+    // Cypher must start from all OPEN jobs so results are never empty
+    expect(query).toMatch(/MATCH \(j:Job\) WHERE j\.status = 'OPEN'/);
+    expect(query).toMatch(/OPTIONAL MATCH/);
   });
 
   test('default limit is 10', async () => {

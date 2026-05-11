@@ -37,10 +37,10 @@ const getJobRecommendations = (userId) =>
 // n job phù hợp nhất cho user — sort theo % skill match
 const getBestJobsForUser = (userId, limit = 10) =>
   neo4j.Query(
-    `MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j:Job)
-     WHERE j.status = 'OPEN'
+    `MATCH (j:Job) WHERE j.status = 'OPEN'
+     OPTIONAL MATCH (u:User {user_id: $userId})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(j)
      WITH j, count(DISTINCT s) AS matching_skills
-     MATCH (j)-[:REQUIRES_SKILL]->(req:Skill)
+     OPTIONAL MATCH (j)-[:REQUIRES_SKILL]->(req:Skill)
      WITH j, matching_skills, count(DISTINCT req) AS required_skills
      RETURN j.job_id        AS job_id,
             j.title         AS title,
@@ -50,7 +50,9 @@ const getBestJobsForUser = (userId, limit = 10) =>
             j.salary_currency AS salary_currency,
             matching_skills,
             required_skills,
-            round(100.0 * matching_skills / required_skills) AS match_percent
+            CASE WHEN required_skills > 0
+                 THEN round(100.0 * matching_skills / required_skills)
+                 ELSE 0 END AS match_percent
      ORDER BY match_percent DESC, matching_skills DESC
      LIMIT toInteger($limit)`,
     { userId: String(userId), limit: parseInt(limit) }

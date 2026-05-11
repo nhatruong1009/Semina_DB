@@ -24,8 +24,15 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
 
         const result = await PostQuery.SaveContent(req.userId, content, mediaArray);
         publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC,  'global');
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        graphQuery.getFollowers(String(req.userId))
+          .then(records => Promise.all(
+            records.map(r => cache.invalidateCache(
+              cache.CACHE_TYPE.FEED_NETWORK,
+              String(r.toObject().user_id)
+            ))
+          ))
+          .catch(e => console.error('cache invalidate network feed:', e));
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);
@@ -178,8 +185,15 @@ router.post('/:id/share', [verifyToken], async (req, res) => {
     try {
         const result = await PostQuery.SharePost(req.params.id, req.userId);
         publishPostEvent(POSTS_EVENT_TYPE.SHARE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC,   'global');
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK,  req.userId);
+        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        graphQuery.getFollowers(String(req.userId))
+          .then(records => Promise.all(
+            records.map(r => cache.invalidateCache(
+              cache.CACHE_TYPE.FEED_NETWORK,
+              String(r.toObject().user_id)
+            ))
+          ))
+          .catch(e => console.error('cache invalidate network feed:', e));
         res.json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/share:', err);
