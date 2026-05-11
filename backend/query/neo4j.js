@@ -53,7 +53,7 @@ const getBestJobsForUser = (userId, limit = 10) =>
             round(100.0 * matching_skills / required_skills) AS match_percent
      ORDER BY match_percent DESC, matching_skills DESC
      LIMIT toInteger($limit)`,
-    { userId, limit: parseInt(limit) }
+    { userId: String(userId), limit: parseInt(limit) }
   );
 
 // n ứng viên phù hợp nhất cho 1 job — sort theo % skill match
