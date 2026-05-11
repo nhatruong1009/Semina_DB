@@ -3,6 +3,7 @@ const Neo4j = require('../query/neo4j');
 const NotificationQuery = require('../query/notification');
 const UserQuery = require('../query/user');
 const mongosh = require('../init_db').mongosh;
+const JobQuery = require('../query/jobs')
 
 const USER_CREATED = 'user.created';
 const POSTS_TOPIC = 'posts.events';
@@ -115,6 +116,66 @@ async function handleUserNotification(type, payload) {
   }
 }
 
+async function handleJobNotification(type, payload) {
+  try {
+    const job_id = payload.job_id;
+    const record = await JobQuery.GetByIds([job_id]);
+    if (record.rowCount === 0) return;
+    const job = record.rows[0];
+    const ownerId = job.recruiter_id;
+    if (ownerId === String(payload.user_id)) return;
+    
+    const userResult = await UserQuery.getUserProfileById(payload.user_id);
+    if (userResult.rowCount === 0) return;
+    const user = userResult.rows[0];
+    
+    const actor = {
+      id: String(payload.user_id),
+      name: user.full_name,
+      avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
+    };
+    
+    const entity = {
+      id: payload.user_id,
+      type: "JOBS",
+      preview: `${user.full_name} apply to ${job.title}`
+    };
+    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+  } catch (err) {
+    console.error("Error handling user notification:", err);
+  }
+}
+
+async function handleJobNotificationCreate(type, payload) {
+  try{
+    const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
+    if (!records) return;
+    const user_ids = records.map(r => r.toObject().user_id);
+    const userResult = await UserQuery.getUserProfileById(payload.recruiter_id);
+    if (userResult.rowCount === 0) return;
+    const user = userResult.rows[0];
+
+    const entity = {
+      id: String(user.id),
+      type: "JOBS",
+      preview: `${user.full_name} is hiring ${payload.title}`
+    };
+
+    const actor = {
+        id: String(user.id),
+        name: user.full_name,
+        avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
+      };
+
+    for(let id of user_ids){
+      if (id === user.id) continue;
+      await NotificationQuery.createNotification(String(id), actor, type, entity);
+    }
+  }catch (err) {
+    console.error("Error handling user notification:", err);
+  }
+}
+
 async function consumeUsersEvents(payload) {
   try {
     switch (payload.type) {
@@ -166,9 +227,11 @@ async function consumeJobsEvents(payload) {
   switch (payload.type) {
     case JOBS_EVENT_TYPE.CREATE:
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
+      await handleJobNotificationCreate("COMPANY_HIRING", payload);
       break;
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);
+      await handleJobNotification("JOB_APPLY", payload);
       break;
   }
   } catch(err){
