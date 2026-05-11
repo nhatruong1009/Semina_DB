@@ -61,7 +61,7 @@ const Get = () => {
 
 const GetByIds = (ids) => {
   return psql.Query(
-    `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at,
+    `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
             c.name AS company_name, c.industry, c.description AS company_description,
             COUNT(a.id) AS applicants_count
      FROM jobs j
