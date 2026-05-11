@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Neo4j = require('../query/neo4j');
+const psql = require('../data/postgresql');
 const { verifyToken } = require('../middleware/auth');
 const cache = require('../query/cache');
 const { publishUserEvent, USERS_EVENT_TYPE } = require('../datadriven/data_collector');
@@ -46,10 +47,108 @@ router.get('/mutual/:userId1/:userId2', [verifyToken], async (req, res) => {
   }
 });
 
+// n job phù hợp nhất cho user (có match_percent, enrich từ PostgreSQL)
+router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+    const records = await Neo4j.getBestJobsForUser(req.params.userId, limit);
+    const recs = records.map(r => r.toObject());
+
+    // No skill data in Neo4j — fall back to all open jobs for demo
+    if (recs.length === 0) {
+      const fallback = await psql.Query(`
+        SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+               c.name AS company_name, c.id AS company_id,
+               COUNT(ja.id)::int AS applicants_count
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.id
+        LEFT JOIN job_applications ja ON j.id = ja.job_id
+        WHERE j.status = 'OPEN'
+        GROUP BY j.id, c.name, c.id
+        ORDER BY j.created_at DESC
+        LIMIT $1
+      `, [limit]);
+      return res.json(fallback.rows.map(j => ({
+        ...j, matching_skills: 0, required_skills: 0, match_percent: 0,
+      })));
+    }
+
+    const jobIds = recs.map(r => String(r.job_id));
+    const result = await psql.Query(`
+      SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+             c.name AS company_name, c.id AS company_id,
+             COUNT(ja.id)::int AS applicants_count
+      FROM jobs j
+      LEFT JOIN companies c ON j.company_id = c.id
+      LEFT JOIN job_applications ja ON j.id = ja.job_id
+      WHERE j.id = ANY($1::uuid[])
+      GROUP BY j.id, c.name, c.id
+    `, [jobIds]);
+
+    const metaMap = Object.fromEntries(
+      recs.map(r => [String(r.job_id), {
+        matching_skills: Number(r.matching_skills),
+        required_skills: Number(r.required_skills),
+        match_percent:   Number(r.match_percent),
+      }])
+    );
+    const enriched = result.rows
+      .map(j => ({ ...j, ...metaMap[j.id] }))
+      .sort((a, b) => b.match_percent - a.match_percent);
+
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   try {
+    const cached = await cache.getCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId);
+    if (cached) return res.json(cached);
+
     const records = await Neo4j.getJobRecommendations(req.params.userId);
-    res.json(records.map(r => r.toObject()));
+    const recs = records.map(r => r.toObject());
+
+    // Fallback: nếu user chưa có skills trong Neo4j → trả all open jobs
+    if (recs.length === 0) {
+      const result = await psql.Query(`
+        SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+               c.name AS company_name, c.id AS company_id,
+               COUNT(ja.id)::int AS applicants_count
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.id
+        LEFT JOIN job_applications ja ON j.id = ja.job_id
+        WHERE j.status = 'OPEN'
+        GROUP BY j.id, c.name, c.id
+        ORDER BY j.created_at DESC
+      `);
+      const fallback = result.rows.map(j => ({ ...j, matching_skills: 0 }));
+      cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, fallback);
+      return res.json(fallback);
+    }
+
+    // Enrich: lấy full job details từ PostgreSQL cho các job Neo4j recommend
+    const jobIds = recs.map(r => String(r.job_id));
+    const result = await psql.Query(`
+      SELECT j.id, j.title, j.salary_range, j.status, j.created_at,
+             c.name AS company_name, c.id AS company_id,
+             COUNT(ja.id)::int AS applicants_count
+      FROM jobs j
+      LEFT JOIN companies c ON j.company_id = c.id
+      LEFT JOIN job_applications ja ON j.id = ja.job_id
+      WHERE j.id = ANY($1::uuid[])
+      GROUP BY j.id, c.name, c.id
+    `, [jobIds]);
+
+    // Gắn matching_skills từ Neo4j vào từng job, sort theo số skill khớp
+    const matchMap = Object.fromEntries(recs.map(r => [String(r.job_id), Number(r.matching_skills)]));
+    const enriched = result.rows
+      .map(j => ({ ...j, matching_skills: matchMap[j.id] ?? 0 }))
+      .sort((a, b) => b.matching_skills - a.matching_skills);
+
+    cache.storeCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.params.userId, enriched);
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

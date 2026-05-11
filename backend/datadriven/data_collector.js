@@ -1,5 +1,6 @@
 const { produce, consume } = require('./kafka');
 const Neo4j = require('../query/neo4j');
+const cache = require('../query/cache');
 const NotificationQuery = require('../query/notification');
 const UserQuery = require('../query/user');
 const mongosh = require('../init_db').mongosh;
@@ -228,6 +229,14 @@ async function consumeJobsEvents(payload) {
     case JOBS_EVENT_TYPE.CREATE:
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
       await handleJobNotificationCreate("COMPANY_HIRING", payload);
+      Neo4j.getBestUsersForJob(payload.job_id, 50)
+        .then(records => Promise.all(
+          records.map(r => cache.invalidateCache(
+            cache.CACHE_TYPE.JOB_RECOMMENDATIONS,
+            String(r.toObject().user_id)
+          ))
+        ))
+        .catch(e => console.error('cache invalidate job recs:', e));
       break;
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);

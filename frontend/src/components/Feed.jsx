@@ -35,12 +35,15 @@ const Feed = ({ navigateToProfile }) => {
   };
 
   const fetchJobs = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      const res = await jobAPI.getJobs();
-      setJobs(res.data);
-      
-      const appliedRes = await jobAPI.getApplied();
+      const [jobRes, appliedRes] = await Promise.all([
+        networkAPI.getJobRecommendations(String(user.id)),
+        jobAPI.getApplied(),
+      ]);
+      setJobs(jobRes.data);
+      setRecommendations(jobRes.data.slice(0, 3));
       setAppliedIds(new Set(appliedRes.data.map(j => j.id)));
     } catch (err) {
       console.error('Error fetching jobs:', err);
@@ -58,21 +61,13 @@ const Feed = ({ navigateToProfile }) => {
     }
   };
 
-  const fetchJobRecs = async () => {
-    if (!user?.id) return;
-    try {
-      const res = await networkAPI.getJobRecommendations(String(user.id));
-      setRecommendations(res.data.slice(0, 3)); // Top 3
-    } catch (err) {}
-  };
-
   useEffect(() => {
     if (feedMode === 'jobs') {
       fetchJobs();
     } else {
       fetchFeed();
+      if (user?.id) fetchJobs();
     }
-    fetchJobRecs();
   }, [feedMode, user?.id]);
 
   return (
