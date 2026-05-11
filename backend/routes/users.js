@@ -275,6 +275,28 @@ router.get('/:userId/skills', [verifyToken], async (req, res) => {
   }
 });
 
+// Add school to user
+router.post('/:userId/school', [verifyToken], async (req, res) => {
+  try {
+    const { schoolName } = req.body;
+    if (!schoolName) return res.status(400).json({ error: 'schoolName required' });
+    await Neo4j.addStudiedAt(req.params.userId, schoolName);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove school from user
+router.delete('/:userId/school/:schoolName', [verifyToken], async (req, res) => {
+  try {
+    await Neo4j.removeStudiedAt(req.params.userId, decodeURIComponent(req.params.schoolName));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add a skill to a user
 router.post('/:userId/skills', [verifyToken], async (req, res) => {
   try {

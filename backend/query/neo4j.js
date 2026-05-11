@@ -388,6 +388,22 @@ const getAllSkills = () =>
     `MATCH (s:Skill) RETURN s.skill_id AS skill_id, s.name AS name ORDER BY s.name`
   );
 
+const addStudiedAt = (userId, schoolName) =>
+  neo4j.Query(
+    `MERGE (s:School {name: $schoolName})
+     WITH s
+     MATCH (u:User {user_id: $userId})
+     MERGE (u)-[:STUDIED_AT]->(s)`,
+    { userId: String(userId), schoolName }
+  );
+
+const removeStudiedAt = (userId, schoolName) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[r:STUDIED_AT]->(s:School {name: $schoolName})
+     DELETE r`,
+    { userId: String(userId), schoolName }
+  );
+
 const addUserSkill = (userId, skillName) =>
   neo4j.Query(
     `MERGE (s:Skill {name: $name})
@@ -432,6 +448,8 @@ const removeJobSkill = (jobId, skillName) =>
 module.exports = {
 
   createUser,
+  addStudiedAt,
+  removeStudiedAt,
   getSuggestions,
   getSuggestionsAll,
   getHighlyConnectedUsers,
