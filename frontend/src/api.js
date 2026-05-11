@@ -55,6 +55,9 @@ export const jobAPI = {
   getJobApplicants: (id) => API.get(`/jobs/${id}/applicants`),
   applyJob: (id) => API.post(`/jobs/${id}/apply`),
   getApplied: () => API.get('/jobs/applied'),
+  getJobSkills: (id) => API.get(`/jobs/${id}/skills`),
+  addJobSkill: (id, name) => API.post(`/jobs/${id}/skills`, { name }),
+  removeJobSkill: (id, skillName) => API.delete(`/jobs/${id}/skills/${encodeURIComponent(skillName)}`),
 };
 
 export const profileAPI = {
