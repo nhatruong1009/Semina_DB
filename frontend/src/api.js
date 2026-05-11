@@ -29,6 +29,7 @@ export const userAPI = {
 export const postAPI = {
   createPost: (content, media) => API.post('/posts/create', { content, media }),
   getFeed: () => API.get('/posts/feed'),
+  getPostById: (id) => API.get(`/posts/${id}`),
   likePost: (id) => API.post(`/posts/${id}/like`),
   unlikePost: (id) => API.post(`/posts/${id}/unlike`),
   commentPost: (id, text) => API.post(`/posts/${id}/comment`, { text }),
@@ -92,6 +93,13 @@ export const companyAPI = {
 export const adminCompanyAPI = {
   createCompanyWithAdmin: (name, industry, description, email) => API.post('/admin/companies/create', { name, industry, description, email }),
   getAllCompanies: () => API.get('/admin/companies'),
+};
+
+export const notificationAPI = {
+  getNotifications: (limit = 20, cursor = '') => API.get(`/notifications?limit=${limit}&cursor=${cursor}`),
+  getUnreadCount: () => API.get('/notifications/unread-count'),
+  markAsRead: (id) => API.put(`/notifications/${id}/read`),
+  markAllAsRead: () => API.put('/notifications/read-all'),
 };
 
 

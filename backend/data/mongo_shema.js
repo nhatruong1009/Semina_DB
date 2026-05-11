@@ -68,4 +68,50 @@ commentSchema.index({ post_id: 1 });
 reactionSchema.index({ post_id: 1 });
 reactionSchema.index({ post_id: 1, user_id: 1 }, { unique: true });
 
-module.exports = { postSchema, commentSchema, reactionSchema }
+// --- NOTIFICATION SCHEMA ---
+const notificationActorSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  avatar: { type: String }
+});
+
+const notificationEntitySchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"], required: true },
+  preview: { type: String }
+});
+
+const notificationSchema = new mongoose.Schema({
+  user_id: { type: String, required: true },
+  
+  // List of actors (e.g., people who liked the post)
+  actors: [notificationActorSchema],
+  
+  // Total count of actions (e.g., total likes)
+  count: { type: Number, default: 1 },
+
+  type: { 
+    type: String, 
+    enum: [
+      "POST_LIKE", "POST_COMMENT", "POST_SHARE", 
+      "USER_FOLLOW", "CONNECTION_REQUEST", "CONNECTION_ACCEPT",
+      "MESSAGE_RECEIVE", "JOB_RECOMMENDATION", "COMPANY_HIRING"
+    ],
+    required: true 
+  },
+
+  // The thing being acted upon (Post, Job, etc.)
+  entity: { type: notificationEntitySchema },
+
+  is_read: { type: Boolean, default: false },
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now }
+});
+
+// Compound index for aggregation: group by user, type, and entity
+// We only aggregate UNREAD notifications to ensure new activity pops up.
+notificationSchema.index({ user_id: 1, type: 1, "entity.id": 1, is_read: 1 });
+notificationSchema.index({ updated_at: -1 });
+notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 }); // 30 days
+
+module.exports = { postSchema, commentSchema, reactionSchema, notificationSchema }

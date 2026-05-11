@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Neo4j = require('../query/neo4j');
 const { verifyToken } = require('../middleware/auth');
-const cache = require('../query/cache')
+const cache = require('../query/cache');
+const { publishUserEvent, USERS_EVENT_TYPE } = require('../datadriven/data_collector');
 
 router.get('/suggestions-all/:userId', [verifyToken], async (req, res) => {
   try {
@@ -83,7 +84,7 @@ router.get('/same-company/:userId', [verifyToken], async (req, res) => {
 router.post('/connect',  [verifyToken], async (req, res) => {
   try {
     const { userId1, userId2 } = req.body;
-    await Neo4j.createConnect(userId1, userId2);
+    publishUserEvent(USERS_EVENT_TYPE.CONNECT, { user_id: userId1, target_user_id: userId2 }).catch(console.error);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,7 +94,7 @@ router.post('/connect',  [verifyToken], async (req, res) => {
 router.post('/follow', [verifyToken], async (req, res) => {
   try {
     const { followerId, followeeId } = req.body;
-    await Neo4j.createFollow(followerId, followeeId);
+    publishUserEvent(USERS_EVENT_TYPE.FOLLOW, { user_id: followerId, target_user_id: followeeId }).catch(console.error);
     cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
     res.json({ success: true });
   } catch (err) {

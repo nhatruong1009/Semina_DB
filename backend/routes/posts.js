@@ -12,8 +12,23 @@ const cache = require('../query/cache')
 router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
     try {
         const { content, image, media } = req.body;
-        const result = await PostQuery.SaveContent(req.userId, content, media || image);
+        
+        let mediaArray = [];
+        if (Array.isArray(media)) {
+            mediaArray = media;
+        } else if (typeof media === 'string') {
+            mediaArray = [{ type: 'image', url: media }];
+        } else if (typeof image === 'string') {
+            mediaArray = [{ type: 'image', url: image }];
+        }
+
+        const result = await PostQuery.SaveContent(req.userId, content, mediaArray);
         publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
+        
+        // Invalidate the cache for the public feed globally
+        await cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        await cache.invalidateCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
+
         res.status(201).json(result);
     } catch (err) {
         console.error('DEBUG: Error in /posts/create:', err);
@@ -28,7 +43,7 @@ router.get('/feed', [verifyToken], async (req, res) => {
     const start = Date.now(); // capture start time
     is_cache = false;
     try {
-        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_PUBLIC, req.userId);
+        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
         if (ids !== null) {
             is_cache = true;
             const records = await PostQuery.GetByIds(ids, req.userId);
@@ -36,7 +51,7 @@ router.get('/feed', [verifyToken], async (req, res) => {
         } else {
             const transformedFeed = await PostQuery.GetFeed(req.userId);
             const Post_ids = transformedFeed.map(p=>p.id);
-            cache.storeCache(cache.CACHE_TYPE.FEED_PUBLIC, req.userId, Post_ids)
+            cache.storeCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global', Post_ids)
             res.json(transformedFeed);
         }
     } catch (err) {
@@ -81,6 +96,19 @@ router.get('/:id/interactions', [verifyToken], async (req, res) => {
     try {
         const records = await graphQuery.getPostInteractions(req.params.id);
         res.json(records.map(r => r.toObject()));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Get a single post by ID
+ */
+router.get('/:id', [verifyToken], async (req, res) => {
+    try {
+        const result = await PostQuery.GetByIds([req.params.id], req.userId);
+        if (result.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json(result[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
