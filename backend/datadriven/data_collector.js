@@ -67,7 +67,7 @@ async function IncreaseNotify(user_id) {
   return cache.updateCacheWithFn({
     type: cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT,
     object_id: user_id,
-    transformFn: async (val) => (val === null) ? await NotificationQuery.getUnreadCount(ownerId) : val + 1,
+    transformFn: async (val) => (val === null) ? await NotificationQuery.getUnreadCount(user_id) : val + 1,
     keepTTL: false, // refesh cache timeout
   })
 }
