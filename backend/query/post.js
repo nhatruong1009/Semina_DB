@@ -29,7 +29,9 @@ const transformPostInternal = async (post, { update = false, commentsLimit = 3, 
 
     let cachedData;
     if (update === false) {
-        cachedData = await cache.getCache(cache.CACHE_TYPE.POST_CONTENT, postId);
+        cachedData = await cache.getCache({
+            type:cache.CACHE_TYPE.POST_CONTENT, 
+            object_id: postId});
     }
 
     let basePost;
