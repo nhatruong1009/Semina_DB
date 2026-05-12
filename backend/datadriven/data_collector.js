@@ -5,6 +5,9 @@ const NotificationQuery = require('../query/notification');
 const UserQuery = require('../query/user');
 const mongosh = require('../init_db').mongosh;
 const JobQuery = require('../query/jobs')
+const socketUtil = require('./socket');
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const USER_CREATED = 'user.created';
 const POSTS_TOPIC = 'posts.events';
@@ -60,6 +63,15 @@ async function consumeUserCreated(payload) {
   );
 }
 
+async function IncreaseNotify(user_id) {
+  return cache.updateCacheWithFn({
+    type: cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT,
+    object_id: user_id,
+    transformFn: async (val) => (val === null) ? await NotificationQuery.getUnreadCount(ownerId) : val + 1,
+    keepTTL: false, // refesh cache timeout
+  })
+}
+
 
 async function handlePostNotification(type, payload) {
   try {
@@ -85,9 +97,23 @@ async function handlePostNotification(type, payload) {
       preview: post.content.text ? post.content.text.substring(0, 50) : "A post"
     };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const unreadCount = await IncreaseNotify(ownerId);
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
-    console.error("Error handling notification:", err);
+    console.error(`Error handling post notification for ${payload.post_id}:`, err.message);
+    // Simple 1-time retry
+    try {
+      await sleep(200);
+      // Re-fetch only what's needed or just log the intent
+      const post = await mongosh.Post.findById(payload.post_id);
+      if (post) {
+        await NotificationQuery.createNotification(post.author.id, null, type, { id: payload.post_id, type: "POST" });
+        await IncreaseNotify(post.author.id);
+      }
+    } catch (retryErr) {
+      console.error("Final notification failure:", retryErr.message);
+    }
   }
 }
 async function handleUserNotification(type, payload) {
@@ -111,7 +137,9 @@ async function handleUserNotification(type, payload) {
       preview: `Profile of ${user.full_name}`
     };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const unreadCount = await IncreaseNotify(ownerId)
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
@@ -137,11 +165,13 @@ async function handleJobNotification(type, payload) {
     };
     
     const entity = {
-      id: payload.user_id,
-      type: "JOBS",
-      preview: `${user.full_name} apply to ${job.title}`
+      id: payload.job_id,
+      type: "JOB",
+      preview: `${user.full_name} applied to ${job.title}`
     };
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const unreadCount = await IncreaseNotify(ownerId)
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
@@ -157,8 +187,10 @@ async function handleJobNotificationCreate(type, payload) {
     const user = userResult.rows[0];
 
     const entity = {
-      id: String(user.id),
-      type: "JOBS",
+      id: payload.job_id,
+      // FIX #1 companion: Align with corrected enum — 'JOBS' was removed from
+      // notificationEntitySchema; all job entities must now use singular 'JOB'.
+      type: "JOB",
       preview: `${user.full_name} is hiring ${payload.title}`
     };
 
@@ -170,7 +202,9 @@ async function handleJobNotificationCreate(type, payload) {
 
     for(let id of user_ids){
       if (id === user.id) continue;
-      await NotificationQuery.createNotification(String(id), actor, type, entity);
+      const result = await NotificationQuery.createNotification(String(id), actor, type, entity);
+      const unreadCount = await IncreaseNotify(String(id));
+      socketUtil.emitNotification(id, result, unreadCount);
     }
   }catch (err) {
     console.error("Error handling user notification:", err);
@@ -227,28 +261,62 @@ async function consumePostsEvents(payload) {
   }
 }
 
-async function consumeJobsEvents(payload) {
-  try{
-  switch (payload.type) {
-    case JOBS_EVENT_TYPE.CREATE:
-      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
-      await handleJobNotificationCreate("COMPANY_HIRING", payload);
-      Neo4j.getBestUsersForJob(payload.job_id, 50)
-        .then(records => Promise.all(
-          records.map(r => cache.invalidateCache(
-            cache.CACHE_TYPE.JOB_RECOMMENDATIONS,
-            String(r.toObject().user_id)
-          ))
-        ))
-        .catch(e => console.error('cache invalidate job recs:', e));
-      break;
-    case JOBS_EVENT_TYPE.APPLY:
-      await Neo4j.applyJob(payload.user_id, payload.job_id);
-      await handleJobNotification("JOB_APPLY", payload);
-      break;
+async function notifyMatchingUsers(jobId, recruiterId, title, users) {
+  if (!users || users.length === 0) return;
+  const userResult = await UserQuery.getUserProfileById(recruiterId);
+  if (userResult.rowCount === 0) return;
+  const recruiter = userResult.rows[0];
+
+  const actor = {
+    id: String(recruiter.id),
+    name: recruiter.full_name,
+    avatar: recruiter.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(recruiter.full_name)}&background=0a66c2&color=fff`
+  };
+  const entity = { id: jobId, type: "JOB", preview: `${recruiter.full_name} is hiring ${title}` };
+
+  for (let id of users) {
+    if (String(id) === String(recruiterId)) continue;
+    const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
+    const unreadCount = await IncreaseNotify(String(id));
+    socketUtil.emitNotification(id, result, unreadCount);
   }
-  } catch(err){
-    console.log("consumeJobsEvents error", err);
+}
+
+async function UpdateMatchingUserCaches(userIds, job_id) {
+  if (!userIds || userIds.length === 0) return;
+  await Promise.allSettled(
+    userIds.map(uid => cache.updateCacheWithFn({
+      type:cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 
+      object_id: uid,
+      transformFn: (val) => (val === null) ? null : [ job_id,...val],
+      keepTTL: true,
+    }))
+  );
+}
+
+async function consumeJobsEvents(payload) {
+  console.log('[EVENT] Jobs:', payload.type, payload.job_id);
+  try {
+    switch (payload.type) {
+      case JOBS_EVENT_TYPE.CREATE: {
+        await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
+        await sleep(200); // Simple MVP hack for eventual consistency
+        
+        const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
+        if (records && records.length > 0) {
+          const matchingUserIds = records.map(r => r.toObject().user_id);
+          await notifyMatchingUsers(payload.job_id, payload.recruiter_id, payload.title, matchingUserIds);
+          await UpdateMatchingUserCaches(matchingUserIds, payload.job_id);
+        }
+        break;
+      }
+      case JOBS_EVENT_TYPE.APPLY:
+        await Neo4j.applyJob(payload.user_id, payload.job_id);
+        await handleJobNotification("JOB_APPLY", payload);
+        break;
+    }
+  } catch (err) {
+    console.error("consumeJobsEvents error", err);
   }
 }
 

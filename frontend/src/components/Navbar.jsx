@@ -1,34 +1,32 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { AuthContext } from '../AuthContext';
-import { notificationAPI } from '../api';
 import '../styles/Navbar.css';
 
-const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
+const Navbar = ({ currentPage, setCurrentPage, navigateToProfile, unreadCount = 0, onNotificationsOpen }) => {
   const { logout, user } = useContext(AuthContext);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // unreadCount is now fully managed by App.jsx:
+  // • Initial value = fetched from DB on login (notificationAPI.getUnreadCount)
+  // • Incremented by socket events (useSocket in App.jsx)
+  // • Reset to 0 when user opens the Notifications page (onNotificationsOpen)
+  // Navbar is a pure display component for the badge — no local polling needed.
 
-  const fetchUnreadCount = async () => {
-    try {
-      const { data } = await notificationAPI.getUnreadCount();
-      setUnreadCount(data.unread_count || 0);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 60000); // Polling every minute
-      return () => clearInterval(interval);
+  const handleNavClick = (page) => {
+    if (currentPage === page) {
+      scrollToTop();
+    } else {
+      setCurrentPage(page);
     }
-  }, [user]);
+  };
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
         <div className="navbar-left">
-            <div className="navbar-logo" onClick={() => setCurrentPage('feed')}>
+            <div className="navbar-logo" onClick={() => handleNavClick('feed')}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" fill="#0a66c2">
                 <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.25 6.5 1.75 1.75 0 016.5 8.25zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"></path>
               </svg>
@@ -38,7 +36,7 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
         <div className="nav-links">
           <button
             className={`nav-item ${currentPage === 'feed' ? 'active' : ''}`}
-            onClick={() => setCurrentPage('feed')}
+            onClick={() => handleNavClick('feed')}
           >
             <div className="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
@@ -50,7 +48,7 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
 
           <button
             className={`nav-item ${currentPage === 'network' ? 'active' : ''}`}
-            onClick={() => setCurrentPage('network')}
+            onClick={() => handleNavClick('network')}
           >
             <div className="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
@@ -64,8 +62,11 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
           <button
             className={`nav-item ${currentPage === 'notifications' ? 'active' : ''}`}
             onClick={() => {
-              setCurrentPage('notifications');
-              setUnreadCount(0);
+              if (currentPage === 'notifications') {
+                scrollToTop();
+              } else {
+                setCurrentPage('notifications');
+              }
             }}
           >
             <div className="nav-icon">
@@ -84,7 +85,7 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile }) => {
           {user?.is_staff === true && (
             <button
               className={`nav-item ${currentPage === 'jobs' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('jobs')}
+              onClick={() => handleNavClick('jobs')}
             >
                 <div className="nav-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

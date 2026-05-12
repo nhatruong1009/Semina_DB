@@ -137,7 +137,7 @@ const GetFeed = async (userId, limit = 10, skip = 0) => {
         .skip(skip)
         .limit(limit);
     
-    console.log(`[DEBUG GetFeed] Found ${posts.length} posts in DB (skip: ${skip}, limit: ${limit}).`);
+
 
     const transformedPosts = [];
     for (const p of posts) {

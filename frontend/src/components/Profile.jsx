@@ -66,6 +66,10 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
   const [allSkills, setAllSkills] = useState([]);
   const [skillInput, setSkillInput] = useState('');
   const [showSkillInput, setShowSkillInput] = useState(false);
+  const [schools, setSchools] = useState([]);
+  const [allSchoolsList, setAllSchoolsList] = useState([]);
+  const [schoolInput, setSchoolInput] = useState('');
+  const [showSchoolInput, setShowSchoolInput] = useState(false);
   const [showModalType, setShowModalType] = useState(null);
   const [isEditingOpenToWork, setIsEditingOpenToWork] = useState(false);
   const [openToWorkRoles, setOpenToWorkRoles] = useState('Product Designer, UX Designer roles');
@@ -76,12 +80,42 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
       fetchProfile();
       fetchSocialStats();
       fetchSkills();
+      fetchSchools();
       if (String(currentUser?.id) === String(targetUserId)) {
         fetchAppliedJobs();
         skillAPI.getAllSkills().then(res => setAllSkills(res.data)).catch(() => {});
+        networkAPI.getAllSchools().then(res => setAllSchoolsList(res.data)).catch(() => {});
       }
     }
   }, [targetUserId, currentUser]);
+
+  const fetchSchools = async () => {
+    try {
+      const res = await networkAPI.getUserSchools(targetUserId);
+      setSchools(res.data);
+    } catch (err) {}
+  };
+
+  const handleAddSchool = async (name) => {
+    if (!name.trim()) return;
+    try {
+      await networkAPI.addSchool(targetUserId, name.trim());
+      setSchoolInput('');
+      setShowSchoolInput(false);
+      fetchSchools();
+    } catch (err) {
+      console.error('Add school failed:', err);
+    }
+  };
+
+  const handleRemoveSchool = async (name) => {
+    try {
+      await networkAPI.removeSchool(targetUserId, name);
+      fetchSchools();
+    } catch (err) {
+      console.error('Remove school failed:', err);
+    }
+  };
 
   const fetchSkills = async () => {
     try {
@@ -104,6 +138,7 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
 
   const handleRemoveSkill = async (skillName) => {
     try {
+      // Use userAPI.removeSkill as defined in api.js or fix api.js
       await skillAPI.removeSkill(targetUserId, skillName);
       fetchSkills();
     } catch (err) {
@@ -338,6 +373,52 @@ const Profile = ({ userId: propUserId, navigateToProfile }) => {
                 )}
               </span>
             )) : <p className="empty-skills">No skills added yet.</p>}
+          </div>
+        </div>
+
+        {/* Education Section */}
+        <div className="profile-card">
+          <div className="section-header">
+            <h3>Education</h3>
+            {isMe && (
+              <button className="icon-btn" onClick={() => setShowSchoolInput(v => !v)}>
+                <PlusIcon />
+              </button>
+            )}
+          </div>
+
+          {isMe && showSchoolInput && (
+            <div className="input-group-premium animate-in">
+              <input
+                list="school-suggestions"
+                value={schoolInput}
+                onChange={e => setSchoolInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddSchool(schoolInput)}
+                placeholder="Ex: Harvard University..."
+                className="premium-input"
+              />
+              <datalist id="school-suggestions">
+                {allSchoolsList
+                  .filter(s => !schools.some(us => us.name === s.name))
+                  .map((s, idx) => <option key={idx} value={s.name} />)}
+              </datalist>
+              <button className="save-btn-premium" onClick={() => handleAddSchool(schoolInput)}>Add</button>
+            </div>
+          )}
+
+          <div className="education-list">
+            {schools.length > 0 ? schools.map((s, idx) => (
+              <div key={idx} className="education-item">
+                <div className="item-logo-placeholder">🎓</div>
+                <div className="item-details">
+                  <h4>{s.name}</h4>
+                  <p className="item-description">Bachelor's Degree • Computer Science</p>
+                </div>
+                {isMe && (
+                  <button className="item-remove-btn" onClick={() => handleRemoveSchool(s.name)}>×</button>
+                )}
+              </div>
+            )) : <p className="empty-state-text">No education added yet.</p>}
           </div>
         </div>
 

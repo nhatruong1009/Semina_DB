@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/JobCard.css';
 
-const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApplicants }) => {
+const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApplicants, onViewDetails, currentUserId }) => {
   const formatCurrency = (amount, currency) => {
     if (amount === undefined || amount === null) return '0';
     
@@ -59,7 +59,13 @@ const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApp
 
 
   const salary = getSalaryDisplay();
-
+  
+  console.log('[DEBUG JobCard]', { 
+    title: job.title, 
+    currentUserId, 
+    recruiter_id: job.recruiter_id, 
+    match: String(currentUserId) === String(job.recruiter_id) 
+  });
 
   return (
     <div className="job-card premium-card">
@@ -93,10 +99,13 @@ const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApp
           </div>
 
           {job.required_skills_list?.length > 0 && (
-            <div className="job-skills-row">
-              {job.required_skills_list.map(s => (
-                <span key={s} className="skill-tag skill-tag-sm">{s}</span>
-              ))}
+            <div className="job-skills-container">
+              <p className="skills-label">Required Skills:</p>
+              <div className="job-skills-row">
+                {job.required_skills_list.map(s => (
+                  <span key={s} className="skill-tag skill-tag-sm">{s}</span>
+                ))}
+              </div>
             </div>
           )}
 
@@ -125,13 +134,21 @@ const JobCard = ({ job, onApply, isApplied, isAdmin, onEdit, onDelete, onViewApp
             📋 View Detailed Applicants
           </button>
         ) : (
-          <button
-            onClick={() => onApply(job.id)}
-            className={`apply-btn-premium ${isApplied ? 'applied-state' : ''}`}
-            disabled={isApplied}
-          >
-            {isApplied ? '✓ Already Applied' : 'Apply for this position'}
-          </button>
+          <div className="job-card-actions-row">
+            <button
+              onClick={() => onViewDetails && onViewDetails(job)}
+              className="view-details-btn-premium"
+            >
+              View Details
+            </button>
+            <button
+              onClick={() => onApply(job.id)}
+              className={`apply-btn-premium ${isApplied ? 'applied-state' : ''}`}
+              disabled={isApplied}
+            >
+              {isApplied ? '✓ Already Applied' : 'Apply Now'}
+            </button>
+          </div>
         )}
       </div>
     </div>

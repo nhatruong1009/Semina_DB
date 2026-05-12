@@ -21,7 +21,9 @@ router.post('/register', async (req, res) => {
     }
 
     const profile = records.rows[0];
-    console.log(`User created: ${profile.email} successfully`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH] User registration successful for ID: ${profile.user_id}`);
+    }
 
     const r = await publishUserCreated({
       user_id: profile.user_id || profile.id,

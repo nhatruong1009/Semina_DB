@@ -23,6 +23,7 @@ export const userAPI = {
   getAllUsers: () => API.get('/users/all'),
   follow: (followerId, followeeId) => API.post('/users/follow', { followerId, followeeId }),
   unfollow: (followeeId) => API.post('/users/unfollow', { followeeId }),
+  removeSkill: (userId, skillName) => API.delete(`/users/${userId}/skills/${encodeURIComponent(skillName)}`),
 };
 
 
@@ -53,6 +54,7 @@ export const jobAPI = {
   getJobs: () => API.get('/jobs'),
   getMyJobs: () => API.get('/jobs/my-jobs'),
   getJobApplicants: (id) => API.get(`/jobs/${id}/applicants`),
+  getJobDetail: (id) => API.get(`/jobs/${id}`),
   applyJob: (id) => API.post(`/jobs/${id}/apply`),
   getApplied: () => API.get('/jobs/applied'),
   getJobSkills: (id) => API.get(`/jobs/${id}/skills`),
@@ -78,7 +80,7 @@ export const networkAPI = {
   getSuggestions: (userId, params) => API.get(`/users/suggestions/${userId}`, { params }),
   getSuggestionsAll: (userId, params) => API.get(`/users/suggestions-all/${userId}`, { params }),
   getMutual: (userId1, userId2) => API.get(`/users/mutual/${userId1}/${userId2}`),
-  getJobRecommendations:   (userId) => API.get(`/users/job-recommendations/${userId}`),
+  getJobRecommendations:   (userId, page = 1, limit = 10) => API.get(`/users/job-recommendations/${userId}?page=${page}&limit=${limit}`),
   getBestJobsForUser:      (userId, limit = 10) => API.get(`/users/best-jobs/${userId}`, { params: { limit } }),
   getBestCandidatesForJob: (jobId,  limit = 10) => API.get(`/jobs/${jobId}/best-candidates`, { params: { limit } }),
   getSameSchool: (userId, params) => API.get(`/users/same-school/${userId}`, { params }),
@@ -91,6 +93,10 @@ export const networkAPI = {
   getFollowers: (userId) => API.get(`/users/followers/${userId}`),
   getFollowing: (userId) => API.get(`/users/following/${userId}`),
   getConnections: (userId) => API.get(`/users/connections/${userId}`),
+  getUserSchools: (userId) => API.get(`/users/${userId}/schools`),
+  getAllSchools: () => API.get('/users/schools/all'),
+  addSchool: (userId, schoolName) => API.post(`/users/${userId}/school`, { schoolName }),
+  removeSchool: (userId, schoolName) => API.delete(`/users/${userId}/school/${encodeURIComponent(schoolName)}`),
 };
 
 

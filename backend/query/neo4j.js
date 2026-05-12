@@ -99,21 +99,16 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
 
 const getHighlyConnectedUsers = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
-    `MATCH (u:User {user_id: $userId})
+    `MATCH (me:User {user_id: $userId})
      MATCH (suggest:User)
      WHERE suggest.user_id <> $userId
        AND NOT suggest.user_id IN $exclude
-       AND NOT (u)-[:CONNECTS]->(suggest)
+       AND NOT (me)-[:CONNECTS]->(suggest)
      WITH suggest, COUNT { (suggest)-[:CONNECTS]-() } AS connections
      ORDER BY connections DESC
-     LIMIT $poolSize
-     WITH collect(suggest) AS pool
-     UNWIND pool AS candidate
-     WITH candidate, rand() AS r
-     ORDER BY r
      LIMIT $limit
-     RETURN candidate.name AS name, candidate.user_id AS user_id, candidate.headline AS headline`,
-    { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) * 2 }
+     RETURN suggest.name AS name, suggest.user_id AS user_id, suggest.headline AS headline`,
+    { userId, exclude, limit: parseInt(limit) }
   );
 
 const DEFAULT_RATIO = { friend: 0.4, same_school: 0.2, same_company: 0.2, popular: 0.2 };
@@ -338,7 +333,7 @@ const getSuggestJobsForUser = (userId, limit = 10, exclude = []) =>
 
     UNION
 
-    // fallback jobs if not enough matches (randomized)
+    // fallback jobs
     MATCH (j2:Job)
     WHERE j2.status = 'OPEN' AND NOT j2.job_id IN $exclude
     WITH j2
@@ -371,7 +366,7 @@ const getSuggestUsersForJob = (jobId, limit = 10, exclude = []) =>
 
     UNION
 
-    // fallback users if not enough matches (randomized)
+    // fallback users
     MATCH (u2:User)
     WHERE NOT u2.user_id IN $exclude
     WITH u2
@@ -431,6 +426,18 @@ const removeUserSkill = (userId, skillName) =>
     { userId: String(userId), name: skillName }
   );
 
+const getUserSchools = (userId) =>
+  neo4j.Query(
+    `MATCH (u:User {user_id: $userId})-[:STUDIED_AT]->(s:School)
+     RETURN s.name AS name ORDER BY s.name`,
+    { userId: String(userId) }
+  );
+
+const getAllSchools = () =>
+  neo4j.Query(
+    `MATCH (s:School) RETURN s.name AS name ORDER BY s.name`
+  );
+
 const getJobSkills = (jobId) =>
   neo4j.Query(
     `MATCH (j:Job {job_id: $jobId})-[:REQUIRES_SKILL]->(s:Skill)
@@ -443,7 +450,7 @@ const addJobSkill = (jobId, skillName) =>
     `MERGE (s:Skill {name: $name})
      ON CREATE SET s.skill_id = 'skill-' + toLower(replace($name, ' ', '-'))
      WITH s
-     MATCH (j:Job {job_id: $jobId})
+     MERGE (j:Job {job_id: $jobId})
      MERGE (j)-[:REQUIRES_SKILL]->(s)`,
     { jobId: String(jobId), name: skillName }
   );
@@ -455,8 +462,16 @@ const removeJobSkill = (jobId, skillName) =>
     { jobId: String(jobId), name: skillName }
   );
 
-module.exports = {
+const getMultipleJobsSkills = (jobIds) =>
+  neo4j.Query(
+    `MATCH (j:Job)-[:REQUIRES_SKILL]->(s:Skill)
+     WHERE j.job_id IN $jobIds
+     RETURN j.job_id AS job_id, collect(s.name) AS skills`,
+    { jobIds }
+  );
 
+module.exports = {
+  getMultipleJobsSkills,
   createUser,
   addStudiedAt,
   removeStudiedAt,
@@ -490,10 +505,14 @@ module.exports = {
   getConnections,
   getSuggestJobsForUser,
   getSuggestUsersForJob,
+  createJobNode,
+  applyJob,
   getUserSkills,
   getAllSkills,
   addUserSkill,
   removeUserSkill,
+  getUserSchools,
+  getAllSchools,
   getJobSkills,
   addJobSkill,
   removeJobSkill,

@@ -10,7 +10,8 @@
     "node-localstorage": "*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.10.0"
+    "react-router-dom": "^6.10.0",
+    "socket.io-client": "^4.8.3"
   },
   "scripts": {
     "dev": "node_modules/vite/bin/vite.js ",

@@ -27,12 +27,12 @@ const PostCreate = ({ onPostCreated }) => {
 
     setLoading(true);
     try {
-      await postAPI.createPost(content, finalMedia);
+      const res = await postAPI.createPost(content, finalMedia);
       setContent('');
       setMedia([]);
       setMediaUrl('');
       setShowMediaInput(false);
-      onPostCreated();
+      onPostCreated(res.data);
     } catch (err) {
       console.error('Error creating post:', err);
       alert('FAILED TO CREATE POST: ' + (err.response?.data?.error || err.message));

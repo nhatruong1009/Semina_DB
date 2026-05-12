@@ -78,6 +78,9 @@ const notificationActorSchema = new mongoose.Schema({
 
 const notificationEntitySchema = new mongoose.Schema({
   id: { type: String, required: true },
+  // FIX: Removed duplicate `JOBS` enum value — JS object keys are unique; the second
+  // definition would silently overwrite the first, making the schema unpredictable.
+  // Standardized to singular `JOB` to match all other entity types (POST, COMMENT, USER…).
   type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"], required: true },
   preview: { type: String }
 });
@@ -96,7 +99,8 @@ const notificationSchema = new mongoose.Schema({
     enum: [
       "POST_LIKE", "POST_COMMENT", "POST_SHARE", 
       "USER_FOLLOW", "CONNECTION_REQUEST", "CONNECTION_ACCEPT",
-      "MESSAGE_RECEIVE", "JOB_RECOMMENDATION", "COMPANY_HIRING"
+      "MESSAGE_RECEIVE", "JOB_RECOMMENDATION", "COMPANY_HIRING",
+      "JOB_APPLY"
     ],
     required: true 
   },
@@ -109,10 +113,17 @@ const notificationSchema = new mongoose.Schema({
   updated_at: { type: Date, default: Date.now }
 });
 
-// Compound index for aggregation: group by user, type, and entity
-// We only aggregate UNREAD notifications to ensure new activity pops up.
-notificationSchema.index({ user_id: 1, type: 1, "entity.id": 1, is_read: 1 });
+// Performance indexes
+notificationSchema.index({ user_id: 1, updated_at: -1 }); // pagination
+notificationSchema.index({ user_id: 1, is_read: 1 });     // unread count
+
+// CRITICAL FIX: Unique compound index matching upsert filter to prevent duplicates.
+// sparse:true allows multiple docs with missing entity.id (e.g. user-level notifications)
+notificationSchema.index(
+  { user_id: 1, type: 1, 'entity.id': 1, is_read: 1 },
+  { unique: true, sparse: true }
+);
 notificationSchema.index({ updated_at: -1 });
-notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 }); // 30 days
+notificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 2592000 }); // 30 days TTL
 
 module.exports = { postSchema, commentSchema, reactionSchema, notificationSchema }
