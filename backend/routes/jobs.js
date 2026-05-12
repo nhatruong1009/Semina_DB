@@ -84,7 +84,7 @@ router.get('/', [verifyToken], async (req, res) => {
     if (validIds.length === 0) return res.json([]);
     
     const result = await Jobs.GetByIds(validIds);
-    res.json(result.rows);
+    res.json(result);
   } catch (err) {
     console.error('Error fetching jobs:', err);
     res.status(500).json({ error: err.message });

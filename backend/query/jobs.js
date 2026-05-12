@@ -1,4 +1,5 @@
 const psql = require('../init_db').psql
+const cache = require('../query/cache')
 
 const Create = (company_id, recruiter_id, title, location, description, salary_range, createdAt) => {
   return psql.Query(
@@ -10,6 +11,7 @@ const Create = (company_id, recruiter_id, title, location, description, salary_r
 }
 
 const Update = (id, title, location, description, salary_range) => {
+  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
   return psql.Query(`UPDATE jobs 
     SET title = $2, location = $3, description = $4, salary_range = $5
     WHERE id = $1
@@ -19,10 +21,12 @@ const Update = (id, title, location, description, salary_range) => {
 }
 
 const Delete = (id) => {
+  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
   return psql.Query(`DELETE FROM jobs WHERE id = $1`, [id]);
 }
 
 const Apply = (job_id, user_id) => {
+  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, job_id);
   return psql.Query(
     `INSERT INTO job_applications (job_id, user_id, status, applied_at)
        VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)
@@ -61,19 +65,40 @@ const Get = (limit = 20, offset = 0) => {
   );
 }
 
-const GetByIds = (ids) => {
-  return psql.Query(
+const GetById = async (id) => {
+  const cached = cache.getCache({
+    type:cache.CACHE_TYPE.JOBS_INFO, 
+    object_id: id
+    });
+  if (cached){
+    return cached;
+  }
+  const records = await psql.Query(
     `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
             c.name AS company_name, c.industry, c.description AS company_description,
             COUNT(a.id) AS applicants_count
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      LEFT JOIN job_applications a ON j.id = a.job_id
-     WHERE j.id = ANY($1)
+     WHERE j.id = $1
      GROUP BY j.id, c.name, c.industry, c.description, j.recruiter_id
      ORDER BY j.created_at DESC`,
-    [ids]  // pass array of IDs as parameter
+    [id]  // pass array of IDs as parameter
   );
+  if (!records || records.rowCount === 0) return null;
+  const data = records.rows[0];
+  await cache.storeCache(cache.CACHE_TYPE.JOBS_INFO, id);
+  return data;
+}
+
+const GetByIds = async (ids) => {
+  let r = [];
+  for (let id of ids){
+    const data = GetById(id);
+    if (data !== null) {
+      r.push(data);
+    }
+  }
 };
 
 

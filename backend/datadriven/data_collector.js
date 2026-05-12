@@ -148,7 +148,7 @@ async function handleJobNotification(type, payload) {
   try {
     const job_id = payload.job_id;
     const record = await JobQuery.GetByIds([job_id]);
-    if (record.rowCount === 0) return;
+    if (!record) return;
     const job = record.rows[0];
     const ownerId = job.recruiter_id;
     if (ownerId === String(payload.user_id)) return;
