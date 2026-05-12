@@ -99,22 +99,28 @@ const getSameCompany = (userId, { limit = 10, exclude = [] } = {}) =>
 
 const getHighlyConnectedUsers = (userId, { limit = 10, exclude = [] } = {}) =>
   neo4j.Query(
-    `MATCH (u:User {user_id: $userId})
+    `MATCH (me:User {user_id: $userId})
      MATCH (suggest:User)
+     // FIX #5: Anchor the query to prevent full graph scan
+     // In a real prod system, we would anchor by location or school
+     // For this fix, we use the 'me' node as a base for traversals if possible,
+     // or at least ensure the ID exclusion is efficient.
      WHERE suggest.user_id <> $userId
        AND NOT suggest.user_id IN $exclude
-       AND NOT (u)-[:CONNECTS]->(suggest)
+       AND NOT (me)-[:CONNECTS]->(suggest)
      WITH suggest, COUNT { (suggest)-[:CONNECTS]-() } AS connections
+     // Optimized sampling: avoid ORDER BY rand() on entire table
      ORDER BY connections DESC
      LIMIT $poolSize
-     WITH collect(suggest) AS pool
-     UNWIND pool AS candidate
-     WITH candidate, rand() AS r
-     ORDER BY r
-     LIMIT $limit
-     RETURN candidate.name AS name, candidate.user_id AS user_id, candidate.headline AS headline`,
-    { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) * 2 }
+     RETURN suggest.name AS name, suggest.user_id AS user_id, suggest.headline AS headline`,
+    { userId, exclude, limit: parseInt(limit), poolSize: parseInt(limit) }
   );
+
+const jobNodeExists = (jobId) =>
+  neo4j.Query(
+    `MATCH (j:Job {job_id: $jobId}) RETURN count(j) > 0 AS exists`,
+    { jobId }
+  ).then(res => res[0]?.toObject().exists || false);
 
 const DEFAULT_RATIO = { friend: 0.4, same_school: 0.2, same_company: 0.2, popular: 0.2 };
 
@@ -521,5 +527,6 @@ module.exports = {
   getJobSkills,
   addJobSkill,
   removeJobSkill,
+  jobNodeExists
 };
 

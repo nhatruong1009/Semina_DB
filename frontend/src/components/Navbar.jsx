@@ -1,32 +1,14 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { AuthContext } from '../AuthContext';
-import { notificationAPI } from '../api';
 import '../styles/Navbar.css';
 
-const Navbar = ({ currentPage, setCurrentPage, navigateToProfile, unreadCount: externalCount, onNotificationsOpen }) => {
+const Navbar = ({ currentPage, setCurrentPage, navigateToProfile, unreadCount = 0, onNotificationsOpen }) => {
   const { logout, user } = useContext(AuthContext);
-  const [polledCount, setPolledCount] = useState(0);
-
-  // Use realtime count from socket (passed from App) when available
-  const unreadCount = externalCount !== undefined ? externalCount : polledCount;
-
-  const fetchUnreadCount = async () => {
-    if (externalCount !== undefined) return; // Skip polling if using socket-driven count
-    try {
-      const { data } = await notificationAPI.getUnreadCount();
-      setPolledCount(data.unread_count || 0);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
+  // unreadCount is now fully managed by App.jsx:
+  // • Initial value = fetched from DB on login (notificationAPI.getUnreadCount)
+  // • Incremented by socket events (useSocket in App.jsx)
+  // • Reset to 0 when user opens the Notifications page (onNotificationsOpen)
+  // Navbar is a pure display component for the badge — no local polling needed.
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -84,8 +66,6 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile, unreadCount: e
                 scrollToTop();
               } else {
                 setCurrentPage('notifications');
-                setPolledCount(0);
-                if (onNotificationsOpen) onNotificationsOpen();
               }
             }}
           >

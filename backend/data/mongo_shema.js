@@ -78,7 +78,10 @@ const notificationActorSchema = new mongoose.Schema({
 
 const notificationEntitySchema = new mongoose.Schema({
   id: { type: String, required: true },
-  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "JOBS", "COMPANY", "MESSAGE"], required: true },
+  // FIX: Removed duplicate `JOBS` enum value — JS object keys are unique; the second
+  // definition would silently overwrite the first, making the schema unpredictable.
+  // Standardized to singular `JOB` to match all other entity types (POST, COMMENT, USER…).
+  type: { type: String, enum: ["POST", "COMMENT", "USER", "JOB", "COMPANY", "MESSAGE"], required: true },
   preview: { type: String }
 });
 

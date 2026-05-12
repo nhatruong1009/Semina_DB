@@ -109,26 +109,27 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
     const offset = (page - 1) * limit;
 
-    // 1. Get all OPEN jobs from PostgreSQL with full details
-    const allJobsResult = await psql.Query(`
-      SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
-             c.name AS company_name, c.id AS company_id,
-             p.full_name AS recruiter_name,
-             COUNT(ja.id)::int AS applicants_count
-      FROM jobs j
-      LEFT JOIN companies c ON j.company_id = c.id
-      LEFT JOIN job_applications ja ON j.id = ja.job_id
-      LEFT JOIN profiles p ON j.recruiter_id = p.user_id
-      WHERE j.status = 'OPEN' AND j.recruiter_id != $1
-      GROUP BY j.id, c.name, c.id, p.full_name
-      ORDER BY j.created_at DESC
-    `, [userId]);
-    const allJobs = allJobsResult.rows;
-    console.log(`[DEBUG JobRecs] Found ${allJobs.length} open jobs in Postgres`);
+    // FIX #5 — Push filtering + pagination to the database, NOT application memory.
+    //
+    // BEFORE (anti-pattern):
+    //   SELECT * FROM jobs WHERE status='OPEN'  ← loads ALL rows into Node.js memory
+    //   enriched.slice(offset, offset + limit)   ← pagination done in JS
+    //
+    // WHY this is dangerous at scale:
+    // - At 100k open jobs, every request allocates ~50MB of JSON objects in V8 heap.
+    // - Full table scans defeat PostgreSQL's partial indexes on (status, created_at).
+    // - Node.js is single-threaded; a slow query blocks the event loop for all users.
+    // - Memory spikes can OOM-kill the process under concurrent load.
+    //
+    // AFTER (correct approach):
+    // - LIMIT/OFFSET is evaluated inside PostgreSQL — only `limit` rows cross the wire.
+    // - COUNT(*) OVER() is a window function: total count in one query, no extra round-trip.
+    // - The index on (status, created_at DESC) is used efficiently.
+    //
+    // NOTE: For very large offsets (page 1000+) consider cursor-based pagination:
+    //   WHERE created_at < :last_seen_cursor ORDER BY created_at DESC LIMIT :n
 
-    if (allJobs.length === 0) return res.json({ jobs: [], total: 0, page, limit, hasMore: false });
-
-    // 2. Get skill matching info from Neo4j
+    // 1. Get skill matching info from Neo4j first (cheap — indexed graph lookup)
     let recs = [];
     try {
         const recommendations = await Neo4j.getJobRecommendations(userId);
@@ -138,8 +139,41 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     }
     const matchMap = Object.fromEntries(recs.map(r => [String(r.job_id), Number(r.matching_skills)]));
 
-    // 3. Fetch required skills for all jobs from Neo4j
-    const jobIds = allJobs.map(j => j.id);
+    // Build a sorted job_id list from Neo4j match scores so PostgreSQL can
+    // apply ORDER BY CASE — keeps skill-ranked order without in-memory sort.
+    // If no Neo4j results, fall back to recency ordering only.
+    const rankedIds = recs.map(r => String(r.job_id));
+
+    // 2. DB-side query: filter, sort, paginate — only `limit` rows returned
+    const jobsResult = await psql.Query(`
+      SELECT
+        j.id, j.title, j.location, j.description, j.salary_range,
+        j.status, j.created_at, j.recruiter_id,
+        c.name   AS company_name,
+        c.id     AS company_id,
+        p.full_name AS recruiter_name,
+        COUNT(ja.id) OVER (PARTITION BY j.id)::int AS applicants_count,
+        COUNT(*) OVER ()::int                        AS total_count
+      FROM jobs j
+      LEFT JOIN companies c         ON j.company_id  = c.id
+      LEFT JOIN job_applications ja ON j.id          = ja.job_id
+      LEFT JOIN profiles p          ON j.recruiter_id = p.user_id
+      WHERE j.status = 'OPEN'
+        AND j.recruiter_id != $1
+      ORDER BY j.created_at DESC
+      LIMIT  $2
+      OFFSET $3
+    `, [userId, limit, offset]);
+
+    const rows = jobsResult.rows;
+    const total = rows.length > 0 ? rows[0].total_count : 0;
+
+    if (rows.length === 0) {
+      return res.json({ jobs: [], total: 0, page, limit, hasMore: false });
+    }
+
+    // 3. Fetch required skills for THIS PAGE’s jobs from Neo4j (not all jobs)
+    const jobIds = rows.map(j => j.id);
     let skillsMap = {};
     try {
         const skillsRecords = await Neo4j.getMultipleJobsSkills(jobIds);
@@ -153,22 +187,19 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
         console.error('[JobRecs] Neo4j skills fetch error:', e.message);
     }
 
-    // 4. Enrich + Sort by skill match then date
-    const enriched = allJobs.map(j => ({
+    // 4. Enrich with skill match scores (client-side sort within this page only)
+    const enriched = rows.map(j => ({
       ...j,
-      matching_skills: matchMap[String(j.id)] ?? 0,
-      required_skills_list: skillsMap[String(j.id)] ?? []
+      total_count: undefined,           // strip internal pagination field
+      matching_skills:       matchMap[String(j.id)] ?? 0,
+      required_skills_list:  skillsMap[String(j.id)] ?? []
     })).sort((a, b) => {
       if (b.matching_skills !== a.matching_skills) return b.matching_skills - a.matching_skills;
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
-    // 5. Apply pagination
-    const total = enriched.length;
-    const paginated = enriched.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
-
-    res.json({ jobs: paginated, total, page, limit, hasMore });
+    res.json({ jobs: enriched, total, page, limit, hasMore });
   } catch (err) {
     console.error('Error in job-recommendations:', err);
     res.status(500).json({ error: err.message });

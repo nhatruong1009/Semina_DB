@@ -16,12 +16,13 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   const handleLike = async () => {
     if (!user) return alert('Please login again');
     try {
+      let res;
       if (post.didLike === true) {
-        await postAPI.unlikePost(post.id);
+        res = await postAPI.unlikePost(post.id);
       } else {
-        await postAPI.likePost(post.id);
+        res = await postAPI.likePost(post.id);
       }
-      onUpdate();
+      onUpdate(post.id, res.data);
     } catch (err) {
       console.error('Error liking post:', err);
     }
@@ -31,19 +32,24 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
-      const newComment = await postAPI.commentPost(post.id, commentText);
+      const res = await postAPI.commentPost(post.id, commentText);
+      const newPost = res.data;
+      
+      // Update local comments state - backend returns newest first, so [0] is our new comment
+      const latestComment = newPost.comments[0]; 
       setComments(prev => [
         {
-          id: newComment.id,          // backend should return id
-          userName: user?.name || 'User',
+          id: latestComment?.id || Date.now(),
+          userName: user?.full_name || user?.name || 'User',
           userImage: user?.profileImage || null,
           text: commentText,
           createdAt: new Date().toISOString()
         },
-        ...prev // newest first
+        ...prev
       ]);
+      
       setCommentText('');
-      onUpdate();
+      onUpdate(post.id, newPost);
     } catch (err) {
       console.error('Error commenting:', err);
     }
@@ -68,12 +74,12 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
 
   const handleShare = async () => {
     try {
-      await postAPI.sharePost(post.id);
+      const res = await postAPI.sharePost(post.id);
       const shareUrl = `${window.location.origin}/post/${post.id}`;
       await navigator.clipboard.writeText(shareUrl);
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
-      onUpdate();
+      onUpdate(post.id, res.data);
     } catch (err) {
       console.error('Error sharing post:', err);
     }
@@ -276,4 +282,4 @@ const PostCard = ({ post, onUpdate, navigateToProfile }) => {
   );
 };
 
-export default PostCard;
+export default React.memo(PostCard);

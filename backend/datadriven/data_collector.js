@@ -167,7 +167,9 @@ async function handleJobNotificationCreate(type, payload) {
 
     const entity = {
       id: payload.job_id,
-      type: "JOBS",
+      // FIX #1 companion: Align with corrected enum — 'JOBS' was removed from
+      // notificationEntitySchema; all job entities must now use singular 'JOB'.
+      type: "JOB",
       preview: `${user.full_name} is hiring ${payload.title}`
     };
 
@@ -241,17 +243,59 @@ async function consumeJobsEvents(payload) {
   console.log('[EVENT] Jobs Received:', payload.type, payload.job_id);
   try{
   switch (payload.type) {
-    case JOBS_EVENT_TYPE.CREATE:
+    case JOBS_EVENT_TYPE.CREATE: {
+      // FIX #4: Replace sleep(200) with robust verification
+      const waitForJobNode = async (jobId, retries = 5) => {
+        for (let i = 0; i < retries; i++) {
+          const exists = await Neo4j.jobNodeExists(jobId);
+          if (exists) return true;
+          await sleep(Math.pow(2, i) * 100); // Exp backoff: 100ms, 200ms, 400ms...
+        }
+        return false;
+      };
+
       await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
-      // RACE CONDITION FIX: Wait a bit for Neo4j index/consistency before querying suggestions
-      await sleep(200); 
-      await handleJobNotificationCreate("COMPANY_HIRING", payload);
       
-      // OPTIMIZED CACHE: Only invalidate recommendations that might have changed
-      // For now, we still invalidate recommendations because it's global, 
-      // but we could target specific users based on skill match in production.
-      await cache.invalidateAll(cache.CACHE_TYPE.JOB_RECOMMENDATIONS);
+      const ready = await waitForJobNode(payload.job_id);
+      if (!ready) {
+        console.error(`[KAFKA] Job node ${payload.job_id} not consistent in Neo4j after retries.`);
+      }
+
+      // FIX #3: Reuse Neo4j traversal records
+      const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
+      
+      // Inline notification logic to reuse records
+      if (records && records.length > 0) {
+        const user_ids = records.map(r => r.toObject().user_id);
+        const userResult = await UserQuery.getUserProfileById(payload.recruiter_id);
+        
+        if (userResult.rowCount > 0) {
+          const user = userResult.rows[0];
+          const actor = {
+            id: String(user.id),
+            name: user.full_name,
+            avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
+          };
+          const entity = {
+            id: payload.job_id,
+            type: "JOB",
+            preview: `${user.full_name} is hiring ${payload.title}`
+          };
+
+          for (let id of user_ids) {
+            if (id === user.id) continue;
+            const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
+            socketUtil.emitNotification(id, result);
+          }
+        }
+
+        // Use same records for cache invalidation
+        await Promise.allSettled(
+          user_ids.map(uid => cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, uid))
+        );
+      }
       break;
+    }
     case JOBS_EVENT_TYPE.APPLY:
       await Neo4j.applyJob(payload.user_id, payload.job_id);
       await handleJobNotification("JOB_APPLY", payload);

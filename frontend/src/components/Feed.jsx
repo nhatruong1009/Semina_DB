@@ -82,6 +82,16 @@ const Feed = ({ navigateToProfile, openJobDetail, appliedIds, handleApply }) => 
     }
   };
 
+  const handleUpdatePost = useCallback((postId, updatedData) => {
+    setPosts(prev => prev.map(post => 
+      post.id === postId ? { ...post, ...updatedData } : post
+    ));
+  }, []);
+
+  const handlePostCreated = useCallback((newPost) => {
+    setPosts(prev => [newPost, ...prev]);
+  }, []);
+
   const fetchJobs = useCallback(async (isInitial = false) => {
     if (!user?.id) return;
     const targetPage = isInitial ? 1 : jobPage;
@@ -132,7 +142,7 @@ const Feed = ({ navigateToProfile, openJobDetail, appliedIds, handleApply }) => 
             const recs = Array.isArray(data) ? data : (data.jobs || []);
             setRecommendations(recs);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   }, [feedMode, user?.id]);
@@ -186,7 +196,7 @@ const Feed = ({ navigateToProfile, openJobDetail, appliedIds, handleApply }) => 
           </div>
         ) : (
           <>
-            <PostCreate onPostCreated={() => fetchFeed(true)} />
+            <PostCreate onPostCreated={handlePostCreated} />
             {loading ? (
               <p className="loading-msg">Loading...</p>
             ) : (
@@ -195,9 +205,9 @@ const Feed = ({ navigateToProfile, openJobDetail, appliedIds, handleApply }) => 
                   if (!post || !post.id) return null;
                   return (
                     <PostCard
-                      key={post.id || index}
+                      key={post.id}
                       post={post}
-                      onUpdate={() => fetchFeed(true)}
+                      onUpdate={handleUpdatePost}
                       navigateToProfile={navigateToProfile}
                     />
                   );

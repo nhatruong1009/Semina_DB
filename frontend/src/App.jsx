@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
+import { notificationAPI } from './api';
 import { AuthContext } from './AuthContext';
 import Auth from './components/Auth';
 import Feed from './components/Feed';
@@ -24,7 +25,20 @@ function App() {
   const [appliedIds, setAppliedIds] = useState(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Realtime: listen for incoming notifications via Socket.io
+  // FETCH INITIAL UNREAD COUNT from DB on login.
+  // Root-cause fix: Navbar's polling guard (externalCount !== undefined) was
+  // always true because App passed 0 (not undefined), so Navbar never called
+  // the API. Moving the fetch here makes App the single source of truth.
+  useEffect(() => {
+    if (accessToken && user) {
+      notificationAPI.getUnreadCount()
+        .then(res => setUnreadCount(res.data.unread_count || 0))
+        .catch(() => {}); // fail silently — badge stays 0, not a critical error
+    }
+  }, [accessToken, user]);
+
+  // Realtime: listen for incoming notifications via Socket.io.
+  // Increments on top of the initial DB count fetched above.
   const handleRealtimeNotification = useCallback(() => {
     setUnreadCount(prev => prev + 1);
   }, []);
@@ -42,17 +56,17 @@ function App() {
     }
   }, [accessToken, user]);
 
-  const navigateToProfile = (userId) => {
+  const navigateToProfile = useCallback((userId) => {
     setTargetUserId(userId);
     setCurrentPage('profile');
-  };
+  }, []);
 
-  const navigateToPost = (postId) => {
+  const navigateToPost = useCallback((postId) => {
     setTargetPostId(postId);
     setCurrentPage('post');
-  };
+  }, []);
 
-  const openJobDetail = async (jobOrId) => {
+  const openJobDetail = useCallback(async (jobOrId) => {
     if (typeof jobOrId === 'string') {
         try {
             const res = await jobAPI.getJobDetail(jobOrId);
@@ -63,16 +77,16 @@ function App() {
     } else {
         setJobToOpen(jobOrId);
     }
-  };
+  }, []);
 
-  const handleGlobalApply = async (jobId) => {
+  const handleGlobalApply = useCallback(async (jobId) => {
     try {
       await jobAPI.applyJob(jobId);
       setAppliedIds(prev => new Set([...prev, jobId]));
     } catch (err) {
       console.error('Apply failed:', err);
     }
-  };
+  }, []);
 
   if (!accessToken) {
     return <Auth />;
@@ -85,7 +99,6 @@ function App() {
         setCurrentPage={setCurrentPage} 
         navigateToProfile={navigateToProfile}
         unreadCount={unreadCount}
-        onNotificationsOpen={() => setUnreadCount(0)}
       />
       <div className="main-content">
         {currentPage === 'feed' && (
@@ -106,6 +119,7 @@ function App() {
                 navigateToProfile={navigateToProfile} 
                 setCurrentPage={setCurrentPage}
                 openJobDetail={openJobDetail}
+                setUnreadCount={setUnreadCount}
             />
         )}
         {currentPage === 'post' && (

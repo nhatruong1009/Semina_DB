@@ -46,7 +46,7 @@ const GetApplied = (user_id) => {
   );
 }
 
-const Get = () => {
+const Get = (limit = 20, offset = 0) => {
   return psql.Query(
     `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at,
             c.name AS company_name, c.industry, c.description AS company_description,
@@ -55,7 +55,9 @@ const Get = () => {
     JOIN companies c ON j.company_id = c.id
     LEFT JOIN job_applications a ON j.id = a.job_id
     GROUP BY j.id, c.name, c.industry, c.description
-    ORDER BY j.created_at DESC`
+    ORDER BY j.created_at DESC
+    LIMIT $1 OFFSET $2`,
+    [limit, offset]
   );
 }
 

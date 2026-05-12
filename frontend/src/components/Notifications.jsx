@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { notificationAPI } from '../api';
 import '../styles/Notifications.css';
 
-const Notifications = ({ navigateToPost, navigateToProfile, setCurrentPage, openJobDetail }) => {
+const Notifications = ({ navigateToPost, navigateToProfile, setCurrentPage, openJobDetail, setUnreadCount }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,13 +24,27 @@ const Notifications = ({ navigateToPost, navigateToProfile, setCurrentPage, open
   const handleNotifClick = async (notif) => {
     // 1. Mark as read if unread
     if (!notif.is_read) {
+      // Optimistic update for list
+      setNotifications(prev => 
+        prev.map(n => n._id === notif._id ? { ...n, is_read: true } : n)
+      );
+      
+      // Issue 2: Prevent double decrement and negative counts
+      if (setUnreadCount) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+
       try {
         await notificationAPI.markAsRead(notif._id);
-        setNotifications(prev => 
-          prev.map(n => n._id === notif._id ? { ...n, is_read: true } : n)
-        );
       } catch (err) {
         console.error('Error marking as read:', err);
+        // Issue 1: Rollback on failure
+        setNotifications(prev => 
+          prev.map(n => n._id === notif._id ? { ...n, is_read: false } : n)
+        );
+        if (setUnreadCount) {
+          setUnreadCount(prev => prev + 1);
+        }
       }
     }
 
@@ -55,11 +69,24 @@ const Notifications = ({ navigateToPost, navigateToProfile, setCurrentPage, open
 
   const handleMarkAllAsRead = async (e) => {
     e.stopPropagation(); // Prevent navigation
+    const originalNotifications = [...notifications];
+    const unreadBefore = notifications.filter(n => !n.is_read).length;
+
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    if (setUnreadCount) {
+      setUnreadCount(0);
+    }
+
     try {
       await notificationAPI.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch (err) {
       console.error('Error marking all as read:', err);
+      // Issue 1: Rollback on failure
+      setNotifications(originalNotifications);
+      if (setUnreadCount) {
+        setUnreadCount(unreadBefore);
+      }
     }
   };
 
