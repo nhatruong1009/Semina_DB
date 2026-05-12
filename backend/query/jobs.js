@@ -99,6 +99,7 @@ const GetByIds = async (ids) => {
       r.push(data);
     }
   }
+  return r;
 };
 
 
