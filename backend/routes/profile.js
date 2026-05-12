@@ -10,13 +10,11 @@ router.get('/:userId', [verifyToken], async (req, res) => {
     
     // If profile doesn't exist, try to create a skeleton one from user info
     if (!records || records.rowCount === 0) {
-      console.log(`[Profile] Missing record for user ${req.params.userId}, attempting recovery...`);
       const User = require('../query/user');
       const userRecords = await User.getUserProfileById(req.params.userId);
       
       if (userRecords && userRecords.rowCount > 0) {
         const userData = userRecords.rows[0];
-        console.log(`[Profile] Found user info for ${userData.email}, upserting profile...`);
         const fullName = userData.full_name || 'User';
         await Profiles.updateProfile(req.params.userId, fullName, '', '', '', '', '');
         

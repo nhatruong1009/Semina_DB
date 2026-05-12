@@ -54,7 +54,6 @@ async function publishJobEvent(eventType, payload) {
 }
 
 async function consumeUserCreated(payload) {
-  console.log(`consumeUserCreated ${payload.user_id} ${payload.email}`);
   await Neo4j.createUser(
     payload.user_id,
     payload.full_name,
@@ -212,7 +211,6 @@ async function handleJobNotificationCreate(type, payload) {
 }
 
 async function consumeUsersEvents(payload) {
-  console.log(`[EVENT] Users: ${payload.type}`, payload);
   try {
     switch (payload.type) {
       case USERS_EVENT_TYPE.FOLLOW:
@@ -231,7 +229,6 @@ async function consumeUsersEvents(payload) {
   }
 }
 async function consumePostsEvents(payload) {
-  console.log(`[EVENT] Posts: ${payload.type}`, payload);
   try{
   switch (payload.type) {
     case POSTS_EVENT_TYPE.CREATE:
@@ -298,7 +295,6 @@ async function UpdateMatchingUserCaches(userIds, job_id) {
 }
 
 async function consumeJobsEvents(payload) {
-  console.log('[EVENT] Jobs:', payload.type, payload.job_id);
   try {
     switch (payload.type) {
       case JOBS_EVENT_TYPE.CREATE: {

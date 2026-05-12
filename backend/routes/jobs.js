@@ -10,7 +10,6 @@ const cache = require('../query/cache');
 router.post('/create', [verifyToken], async (req, res) => {
   try {
     const { title, company_id, location, description, salary_range } = req.body;
-    console.log('[DEBUG Job Create] Payload:', { title, company_id, location, description, salary_range, userId: req.userId });
 
     if (!company_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(company_id)) {
       return res.status(400).json({ error: 'Valid Company ID is required' });
@@ -233,12 +232,6 @@ router.post('/:id/apply', [verifyToken], async (req, res) => {
 
     // Check if user is the recruiter of this job
     const jobResult = await psql.Query('SELECT recruiter_id FROM jobs WHERE id = $1', [jobId]);
-    console.log('[DEBUG Apply] Check:', { 
-      jobId, 
-      userId, 
-      recruiterId: jobResult.rows[0]?.recruiter_id, 
-      match: String(jobResult.rows[0]?.recruiter_id) === String(userId) 
-    });
     
     if (jobResult.rowCount > 0 && String(jobResult.rows[0].recruiter_id) === String(userId)) {
       return res.status(403).json({ error: "You cannot apply to your own job posting." });

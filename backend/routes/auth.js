@@ -106,7 +106,6 @@ router.post('/login', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   // refesh jwt
   const {user_id, refreshToken } = req.body;
-  console.log(`refreshToken ${user_id}`);
   const userId = await User.findByRefreshToken(refreshToken);
   if (!userId || userId !== user_id) return res.status(404).json({ error: 'Refresh token not found' });
 

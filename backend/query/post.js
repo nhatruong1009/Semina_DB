@@ -117,10 +117,8 @@ const SaveContent = async (userId, text, media) => {
     };
 
     try {
-        console.log('DEBUG: Attempting to save post with data:', JSON.stringify(postData, null, 2));
         const newPost = new mongosh.Post(postData);
         const savedPost = await newPost.save();
-        console.log('DEBUG: Post saved successfully with ID:', savedPost._id);
         return await transformPostInternal(savedPost, {update: true, currentUserId: userId.toString()});
     } catch (err) {
       console.error('CRITICAL ERROR: Failed to save post to MongoDB:', err);

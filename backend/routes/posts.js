@@ -52,8 +52,6 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
  * Get feed posts
  */
 router.get('/feed', [verifyToken], async (req, res) => {
-    const start = Date.now();
-    let is_cache = false;
     const limit = parseInt(req.query.limit) || 10;
     const page = parseInt(req.query.page) || 1;
     const skip = (page - 1) * limit;
@@ -63,7 +61,6 @@ router.get('/feed', [verifyToken], async (req, res) => {
             type:cache.CACHE_TYPE.FEED_PUBLIC,
             object_id: 'global'});
         if (ids !== null) {
-            is_cache = true;
             const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
             res.json(records);
         } else {
@@ -78,8 +75,6 @@ router.get('/feed', [verifyToken], async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     } finally {
-        const end = Date.now();
-        console.log(`get feed${is_cache ? "" : " no"} cache: ${end - start} ms (page: ${page}, limit: ${limit})`);
     }
 });
 
@@ -87,8 +82,6 @@ router.get('/feed', [verifyToken], async (req, res) => {
  * Get network feed (posts from people user follows/connects)
  */
 router.get('/feed/network', [verifyToken], async (req, res) => {
-    const start = Date.now();
-    let is_cache = false;
     const limit = parseInt(req.query.limit) || 10;
     const page = parseInt(req.query.page) || 1;
     const skip = (page - 1) * limit;
@@ -100,7 +93,6 @@ router.get('/feed/network', [verifyToken], async (req, res) => {
             type: cache.CACHE_TYPE.FEED_NETWORK, 
             object_id: req.userId});
         if (ids !== null) {
-            is_cache = true;
             const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
             res.json(records);
         } else {
@@ -113,8 +105,6 @@ router.get('/feed/network', [verifyToken], async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     } finally {
-        const end = Date.now();
-        console.log(`get network feed${is_cache ? "" : " no"} cache: ${end - start} ms (page: ${page}, limit: ${limit})`);
     }
 });
 
