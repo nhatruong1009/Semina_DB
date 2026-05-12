@@ -95,6 +95,20 @@ const Navbar = ({ currentPage, setCurrentPage, navigateToProfile, unreadCount = 
               <span>Jobs</span>
             </button>
           )}
+          {user?.is_superadmin === true && (
+            <button
+              className={`nav-item ${currentPage === 'admin-companies' ? 'active' : ''}`}
+              onClick={() => handleNavClick('admin-companies')}
+            >
+                <div className="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M17 6V5a3 3 0 00-3-3h-4a3 3 0 00-3 3v1H2v15h20V6zM9 5a1 1 0 011-1h4a1 1 0 011 1v1H9z"></path>
+                    </svg>
+                </div>
+              <span>Admin Companies</span>
+            </button>
+          )}
+
         </div>
 
         <div className="navbar-right">
