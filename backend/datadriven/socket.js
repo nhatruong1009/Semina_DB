@@ -35,10 +35,10 @@ const getIO = () => {
     return io;
 };
 
-const emitNotification = (userId, notification) => {
+const emitNotification = (userId, notification, unreadCount) => {
     if (io) {
-        io.to(String(userId)).emit('notification', notification);
-        console.log(`[SOCKET] Emitted notification to user ${userId}`);
+        io.to(String(userId)).emit('notification', { notification, unread_count: unreadCount });
+        console.log(`[SOCKET] Emitted notification to user ${userId} with unreadCount ${unreadCount}`);
     }
 };
 

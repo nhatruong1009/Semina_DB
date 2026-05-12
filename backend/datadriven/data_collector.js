@@ -88,17 +88,20 @@ async function handlePostNotification(type, payload) {
       preview: post.content.text ? post.content.text.substring(0, 50) : "A post"
     };
     
-    await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
     await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
+    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
-    // Simple 1-time retry for stability
+    console.error(`Error handling post notification for ${payload.post_id}:`, err.message);
+    // Simple 1-time retry
     try {
       await sleep(200);
+      // Re-fetch only what's needed or just log the intent
       const post = await mongosh.Post.findById(payload.post_id);
       if (post) {
-        const ownerId = post.author.id;
-        // Re-construct basic actor/entity if needed or just log
-        console.log(`[RETRY] Notification for ${ownerId} retrying...`);
+        await NotificationQuery.createNotification(post.author.id, null, type, { id: payload.post_id, type: "POST" });
+        await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, post.author.id);
       }
     } catch (retryErr) {
       console.error("Final notification failure:", retryErr.message);
@@ -128,21 +131,20 @@ async function handleUserNotification(type, payload) {
     
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
     await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
-    socketUtil.emitNotification(ownerId, result);
+    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
 }
 
 async function handleJobNotification(type, payload) {
-  console.log(`[DEBUG ApplyNotif] Handling ${type} for job ${payload.job_id}`);
   try {
     const job_id = payload.job_id;
     const record = await JobQuery.GetByIds([job_id]);
     if (record.rowCount === 0) return;
     const job = record.rows[0];
     const ownerId = job.recruiter_id;
-    console.log('[DEBUG ApplyNotif] Job:', job.title, 'Owner:', ownerId, 'Candidate:', payload.user_id);
     if (ownerId === String(payload.user_id)) return;
     
     const userResult = await UserQuery.getUserProfileById(payload.user_id);
@@ -162,7 +164,8 @@ async function handleJobNotification(type, payload) {
     };
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
     await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
-    socketUtil.emitNotification(ownerId, result);
+    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
   }
@@ -171,10 +174,8 @@ async function handleJobNotification(type, payload) {
 async function handleJobNotificationCreate(type, payload) {
   try{
     const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
-    console.log(`[DEBUG Notif] Suggesting users for job ${payload.job_id}:`, records?.length);
     if (!records) return;
     const user_ids = records.map(r => r.toObject().user_id);
-    console.log(`[DEBUG Notif] Notifying ${user_ids.length} users:`, user_ids);
     const userResult = await UserQuery.getUserProfileById(payload.recruiter_id);
     if (userResult.rowCount === 0) return;
     const user = userResult.rows[0];
@@ -197,7 +198,8 @@ async function handleJobNotificationCreate(type, payload) {
       if (id === user.id) continue;
       const result = await NotificationQuery.createNotification(String(id), actor, type, entity);
       await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
-      socketUtil.emitNotification(id, result);
+      const unreadCount = await NotificationQuery.getUnreadCount(String(id));
+      socketUtil.emitNotification(id, result, unreadCount);
     }
   }catch (err) {
     console.error("Error handling user notification:", err);
@@ -271,7 +273,8 @@ async function notifyMatchingUsers(jobId, recruiterId, title, users) {
     if (String(id) === String(recruiterId)) continue;
     const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
     await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
-    socketUtil.emitNotification(id, result);
+    const unreadCount = await NotificationQuery.getUnreadCount(String(id));
+    socketUtil.emitNotification(id, result, unreadCount);
   }
 }
 
