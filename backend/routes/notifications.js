@@ -37,6 +37,8 @@ router.get('/unread-count', [verifyToken], async (req, res) => {
 router.put('/read-all', [verifyToken], async (req, res) => {
     try {
         const modifiedCount = await NotificationQuery.markAllAsRead(req.userId);
+        const cache = require('../query/cache');
+        await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, req.userId);
         res.json({ success: true, modifiedCount });
     } catch (err) {
         console.error('Error marking all notifications as read:', err);
@@ -53,6 +55,8 @@ router.put('/:id/read', [verifyToken], async (req, res) => {
         if (!notification) {
             return res.status(404).json({ error: 'Notification not found' });
         }
+        const cache = require('../query/cache');
+        await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, req.userId);
         res.json(notification);
     } catch (err) {
         console.error('Error marking notification as read:', err);

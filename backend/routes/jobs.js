@@ -113,18 +113,7 @@ router.get('/:id', [verifyToken], async (req, res) => {
     const jobId = req.params.id;
     
     // 1. Get job from PostgreSQL
-    const result = await psql.Query(`
-      SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
-             c.name AS company_name, c.id AS company_id,
-             p.full_name AS recruiter_name,
-             COUNT(ja.id)::int AS applicants_count
-      FROM jobs j
-      LEFT JOIN companies c ON j.company_id = c.id
-      LEFT JOIN job_applications ja ON j.id = ja.job_id
-      LEFT JOIN profiles p ON j.recruiter_id = p.user_id
-      WHERE j.id = $1
-      GROUP BY j.id, c.name, c.id, p.full_name
-    `, [jobId]);
+    const result = await Jobs.GetFullDetail(jobId);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found' });

@@ -108,6 +108,21 @@ const GetApplicants = (job_id) => {
   );
 }
 
+const GetFullDetail = (job_id) => {
+  return psql.Query(`
+    SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at, j.recruiter_id,
+           c.name AS company_name, c.id AS company_id,
+           p.full_name AS recruiter_name,
+           COUNT(ja.id)::int AS applicants_count
+    FROM jobs j
+    LEFT JOIN companies c ON j.company_id = c.id
+    LEFT JOIN job_applications ja ON j.id = ja.job_id
+    LEFT JOIN profiles p ON j.recruiter_id = p.user_id
+    WHERE j.id = $1
+    GROUP BY j.id, c.name, c.id, p.full_name
+  `, [job_id]);
+}
+
 module.exports = {
   Create,
   Update,
@@ -117,5 +132,6 @@ module.exports = {
   GetByIds,
   GetApplied,
   GetByManager,
-  GetApplicants
+  GetApplicants,
+  GetFullDetail
 }

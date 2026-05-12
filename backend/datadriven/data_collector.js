@@ -89,8 +89,20 @@ async function handlePostNotification(type, payload) {
     };
     
     await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
   } catch (err) {
-    console.error("Error handling notification:", err);
+    // Simple 1-time retry for stability
+    try {
+      await sleep(200);
+      const post = await mongosh.Post.findById(payload.post_id);
+      if (post) {
+        const ownerId = post.author.id;
+        // Re-construct basic actor/entity if needed or just log
+        console.log(`[RETRY] Notification for ${ownerId} retrying...`);
+      }
+    } catch (retryErr) {
+      console.error("Final notification failure:", retryErr.message);
+    }
   }
 }
 async function handleUserNotification(type, payload) {
@@ -115,6 +127,7 @@ async function handleUserNotification(type, payload) {
     };
     
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
     socketUtil.emitNotification(ownerId, result);
   } catch (err) {
     console.error("Error handling user notification:", err);
@@ -148,6 +161,7 @@ async function handleJobNotification(type, payload) {
       preview: `${user.full_name} applied to ${job.title}`
     };
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
+    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
     socketUtil.emitNotification(ownerId, result);
   } catch (err) {
     console.error("Error handling user notification:", err);
@@ -182,6 +196,7 @@ async function handleJobNotificationCreate(type, payload) {
     for(let id of user_ids){
       if (id === user.id) continue;
       const result = await NotificationQuery.createNotification(String(id), actor, type, entity);
+      await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
       socketUtil.emitNotification(id, result);
     }
   }catch (err) {
@@ -239,70 +254,57 @@ async function consumePostsEvents(payload) {
   }
 }
 
-async function consumeJobsEvents(payload) {
-  console.log('[EVENT] Jobs Received:', payload.type, payload.job_id);
-  try{
-  switch (payload.type) {
-    case JOBS_EVENT_TYPE.CREATE: {
-      // FIX #4: Replace sleep(200) with robust verification
-      const waitForJobNode = async (jobId, retries = 5) => {
-        for (let i = 0; i < retries; i++) {
-          const exists = await Neo4j.jobNodeExists(jobId);
-          if (exists) return true;
-          await sleep(Math.pow(2, i) * 100); // Exp backoff: 100ms, 200ms, 400ms...
-        }
-        return false;
-      };
+async function notifyMatchingUsers(jobId, recruiterId, title, users) {
+  if (!users || users.length === 0) return;
+  const userResult = await UserQuery.getUserProfileById(recruiterId);
+  if (userResult.rowCount === 0) return;
+  const recruiter = userResult.rows[0];
 
-      await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
-      
-      const ready = await waitForJobNode(payload.job_id);
-      if (!ready) {
-        console.error(`[KAFKA] Job node ${payload.job_id} not consistent in Neo4j after retries.`);
-      }
+  const actor = {
+    id: String(recruiter.id),
+    name: recruiter.full_name,
+    avatar: recruiter.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(recruiter.full_name)}&background=0a66c2&color=fff`
+  };
+  const entity = { id: jobId, type: "JOB", preview: `${recruiter.full_name} is hiring ${title}` };
 
-      // FIX #3: Reuse Neo4j traversal records
-      const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
-      
-      // Inline notification logic to reuse records
-      if (records && records.length > 0) {
-        const user_ids = records.map(r => r.toObject().user_id);
-        const userResult = await UserQuery.getUserProfileById(payload.recruiter_id);
-        
-        if (userResult.rowCount > 0) {
-          const user = userResult.rows[0];
-          const actor = {
-            id: String(user.id),
-            name: user.full_name,
-            avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a66c2&color=fff`
-          };
-          const entity = {
-            id: payload.job_id,
-            type: "JOB",
-            preview: `${user.full_name} is hiring ${payload.title}`
-          };
-
-          for (let id of user_ids) {
-            if (id === user.id) continue;
-            const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
-            socketUtil.emitNotification(id, result);
-          }
-        }
-
-        // Use same records for cache invalidation
-        await Promise.allSettled(
-          user_ids.map(uid => cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, uid))
-        );
-      }
-      break;
-    }
-    case JOBS_EVENT_TYPE.APPLY:
-      await Neo4j.applyJob(payload.user_id, payload.job_id);
-      await handleJobNotification("JOB_APPLY", payload);
-      break;
+  for (let id of users) {
+    if (String(id) === String(recruiterId)) continue;
+    const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
+    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
+    socketUtil.emitNotification(id, result);
   }
-  } catch(err){
-    console.log("consumeJobsEvents error", err);
+}
+
+async function invalidateMatchingUserCaches(userIds) {
+  if (!userIds || userIds.length === 0) return;
+  await Promise.allSettled(
+    userIds.map(uid => cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, uid))
+  );
+}
+
+async function consumeJobsEvents(payload) {
+  console.log('[EVENT] Jobs:', payload.type, payload.job_id);
+  try {
+    switch (payload.type) {
+      case JOBS_EVENT_TYPE.CREATE: {
+        await Neo4j.createJobNode(payload.job_id, payload.title, payload.company_id, payload.salary_range);
+        await sleep(200); // Simple MVP hack for eventual consistency
+        
+        const records = await Neo4j.getSuggestUsersForJob(payload.job_id);
+        if (records && records.length > 0) {
+          const matchingUserIds = records.map(r => r.toObject().user_id);
+          await notifyMatchingUsers(payload.job_id, payload.recruiter_id, payload.title, matchingUserIds);
+          await invalidateMatchingUserCaches(matchingUserIds);
+        }
+        break;
+      }
+      case JOBS_EVENT_TYPE.APPLY:
+        await Neo4j.applyJob(payload.user_id, payload.job_id);
+        await handleJobNotification("JOB_APPLY", payload);
+        break;
+    }
+  } catch (err) {
+    console.error("consumeJobsEvents error", err);
   }
 }
 

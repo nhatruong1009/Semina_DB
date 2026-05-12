@@ -21,7 +21,6 @@ router.post('/register', async (req, res) => {
     }
 
     const profile = records.rows[0];
-    // FIX #7: Structured logging without PII
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[AUTH] User registration successful for ID: ${profile.user_id}`);
     }

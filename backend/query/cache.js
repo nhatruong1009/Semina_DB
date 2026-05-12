@@ -12,41 +12,25 @@ const CACHE_TYPE = {
     JOBS_APPLIED:   'jobs:applied',
     PROFILE:        'profile:user',
     MUTUAL_CONNECTIONS: 'mutual:connections',
-    POST_CONTENT:       'post:content'
+    POST_CONTENT:       'post:content',
+    NOTIFICATION_UNREAD_COUNT: 'notif:unread'
 };
 
 // TTL configurations per cache type (in seconds)
 const CACHE_CONFIG = {
-    [CACHE_TYPE.SUGGESTIONS_USERS]:   { prefix: 'suggestions:users',  ttl: 60 },    // 1 min  - highly dynamic social graph
-    [CACHE_TYPE.SUGGESTIONS_JOBS]:    { prefix: 'suggestions:jobs',   ttl: 120 },   // 2 min
-
-    // FIX #4 — KEEP JOB_RECOMMENDATIONS TTL at 2 days (172800s). DO NOT reduce.
-    //
-    // WHY long TTL is correct here:
-    // Job recommendations are PRECOMPUTED by a graph traversal over Neo4j (skills,
-    // connections, employer history). This is an O(n) graph scan — not a cheap query.
-    // Recomputing per-request for 1M+ users would collapse the Neo4j cluster.
-    //
-    // Precomputed recommendation architecture:
-    // 1. A background job / Kafka consumer triggers recomputation when:
-    //    - A new job is posted (invalidate matching users only)
-    //    - A user updates their skills (invalidate that user only)
-    // 2. The result is cached here for 2 days so 99.9% of reads are O(1) Redis hits.
-    // 3. Cache-aside pattern: on miss, compute once, cache, return.
-    //
-    // Reducing to 5 minutes would mean Neo4j is queried every 5 min per active user
-    // — at 100k daily active users that’s 20k Neo4j graph queries/min at peak hours.
-    [CACHE_TYPE.JOB_RECOMMENDATIONS]: { prefix: 'job:recommendations', ttl: 172800 }, // 2 days - precomputed, expensive
-
-    [CACHE_TYPE.SAME_SCHOOL]:         { prefix: 'same:school',         ttl: 60 },    // 1 min
-    [CACHE_TYPE.SAME_COMPANY]:        { prefix: 'same:company',        ttl: 60 },    // 1 min
-    [CACHE_TYPE.FEED_PUBLIC]:         { prefix: 'feed:public',         ttl: 180 },   // 3 min  - frequent refresh
-    [CACHE_TYPE.FEED_NETWORK]:        { prefix: 'feed:network',        ttl: 300 },   // 5 min
-    [CACHE_TYPE.JOBS_ALL]:            { prefix: 'jobs:all',            ttl: 300 },   // 5 min  - less dynamic
-    [CACHE_TYPE.JOBS_APPLIED]:        { prefix: 'jobs:applied',        ttl: 300 },   // 5 min
-    [CACHE_TYPE.PROFILE]:             { prefix: 'profile:user',        ttl: 600 },   // 10 min - semi-static data
-    [CACHE_TYPE.MUTUAL_CONNECTIONS]:  { prefix: 'mutual:connections',  ttl: 120 },   // 2 min
-    [CACHE_TYPE.POST_CONTENT]:        { prefix: 'post:content',        ttl: 60 },    // 1 min
+    [CACHE_TYPE.SUGGESTIONS_USERS]:   { prefix: 'suggestions:users',  ttl: 60 },
+    [CACHE_TYPE.SUGGESTIONS_JOBS]:    { prefix: 'suggestions:jobs',   ttl: 120 },
+    [CACHE_TYPE.JOB_RECOMMENDATIONS]: { prefix: 'job:recommendations', ttl: 172800 }, // 2 days
+    [CACHE_TYPE.SAME_SCHOOL]:         { prefix: 'same:school',         ttl: 60 },
+    [CACHE_TYPE.SAME_COMPANY]:        { prefix: 'same:company',        ttl: 60 },
+    [CACHE_TYPE.FEED_PUBLIC]:         { prefix: 'feed:public',         ttl: 180 },
+    [CACHE_TYPE.FEED_NETWORK]:        { prefix: 'feed:network',        ttl: 300 },
+    [CACHE_TYPE.JOBS_ALL]:            { prefix: 'jobs:all',            ttl: 300 },
+    [CACHE_TYPE.JOBS_APPLIED]:        { prefix: 'jobs:applied',        ttl: 300 },
+    [CACHE_TYPE.PROFILE]:             { prefix: 'profile:user',        ttl: 600 },
+    [CACHE_TYPE.MUTUAL_CONNECTIONS]:  { prefix: 'mutual:connections',  ttl: 120 },
+    [CACHE_TYPE.POST_CONTENT]:        { prefix: 'post:content',        ttl: 60 },
+    [CACHE_TYPE.NOTIFICATION_UNREAD_COUNT]: { prefix: 'notif:unread',  ttl: 1800 }, // 30 mins
 };
 
 /**
@@ -174,20 +158,6 @@ const invalidateAll = async (type) => {
     }
 };
 
-/**
- * Executes a function with singleflight protection.
- * Only one execution for the same key will happen concurrently.
- */
-const withSingleflight = async (key, fn) => {
-    if (pendingRebuilds.has(key)) {
-        return pendingRebuilds.get(key);
-    }
-    
-    const promise = fn().finally(() => pendingRebuilds.delete(key));
-    pendingRebuilds.set(key, promise);
-    return promise;
-};
-
 module.exports = {
     CACHE_TYPE,
     get_key_n_ttl,
@@ -197,5 +167,4 @@ module.exports = {
     invalidateCache,
     invalidateUserCaches,
     invalidateAll,
-    withSingleflight
 };

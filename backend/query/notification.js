@@ -54,7 +54,14 @@ const getNotifications = async (userId, limit = 20, cursor = null) => {
 
 const getUnreadCount = async (userId) => {
     try {
-        const count = await mongosh.Notification.countDocuments({ user_id: userId, is_read: false });
+        const cache = require('./cache');
+        let count = await cache.getCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, userId);
+        
+        if (count === null) {
+            count = await mongosh.Notification.countDocuments({ user_id: userId, is_read: false });
+            await cache.storeCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, userId, count);
+        }
+        
         return count;
     } catch (err) {
         console.error('Error getting unread count:', err);
