@@ -63,6 +63,15 @@ async function consumeUserCreated(payload) {
   );
 }
 
+async function IncreaseNotify(user_id) {
+  return cache.updateCacheWithFn({
+    type: cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT,
+    object_id: user_id,
+    transformFn: async (val) => (val === null) ? await NotificationQuery.getUnreadCount(ownerId) : val + 1,
+    keepTTL: false, // refesh cache timeout
+  })
+}
+
 
 async function handlePostNotification(type, payload) {
   try {
@@ -89,8 +98,7 @@ async function handlePostNotification(type, payload) {
     };
     
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
-    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
-    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    const unreadCount = await IncreaseNotify(ownerId);
     socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error(`Error handling post notification for ${payload.post_id}:`, err.message);
@@ -101,7 +109,7 @@ async function handlePostNotification(type, payload) {
       const post = await mongosh.Post.findById(payload.post_id);
       if (post) {
         await NotificationQuery.createNotification(post.author.id, null, type, { id: payload.post_id, type: "POST" });
-        await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, post.author.id);
+        await IncreaseNotify(post.author.id);
       }
     } catch (retryErr) {
       console.error("Final notification failure:", retryErr.message);
@@ -130,8 +138,7 @@ async function handleUserNotification(type, payload) {
     };
     
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
-    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
-    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    const unreadCount = await IncreaseNotify(ownerId)
     socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
@@ -163,8 +170,7 @@ async function handleJobNotification(type, payload) {
       preview: `${user.full_name} applied to ${job.title}`
     };
     const result = await NotificationQuery.createNotification(ownerId, actor, type, entity);
-    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, ownerId);
-    const unreadCount = await NotificationQuery.getUnreadCount(ownerId);
+    const unreadCount = await IncreaseNotify(ownerId)
     socketUtil.emitNotification(ownerId, result, unreadCount);
   } catch (err) {
     console.error("Error handling user notification:", err);
@@ -197,8 +203,7 @@ async function handleJobNotificationCreate(type, payload) {
     for(let id of user_ids){
       if (id === user.id) continue;
       const result = await NotificationQuery.createNotification(String(id), actor, type, entity);
-      await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
-      const unreadCount = await NotificationQuery.getUnreadCount(String(id));
+      const unreadCount = await IncreaseNotify(String(id));
       socketUtil.emitNotification(id, result, unreadCount);
     }
   }catch (err) {
@@ -272,16 +277,20 @@ async function notifyMatchingUsers(jobId, recruiterId, title, users) {
   for (let id of users) {
     if (String(id) === String(recruiterId)) continue;
     const result = await NotificationQuery.createNotification(String(id), actor, "COMPANY_HIRING", entity);
-    await cache.invalidateCache(cache.CACHE_TYPE.NOTIFICATION_UNREAD_COUNT, String(id));
-    const unreadCount = await NotificationQuery.getUnreadCount(String(id));
+    const unreadCount = await IncreaseNotify(String(id));
     socketUtil.emitNotification(id, result, unreadCount);
   }
 }
 
-async function invalidateMatchingUserCaches(userIds) {
+async function UpdateMatchingUserCaches(userIds, job_id) {
   if (!userIds || userIds.length === 0) return;
   await Promise.allSettled(
-    userIds.map(uid => cache.invalidateCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, uid))
+    userIds.map(uid => cache.updateCacheWithFn({
+      type:cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 
+      object_id: uid,
+      transformFn: (val) => (val === null) ? null : [ job_id,...val],
+      keepTTL: true,
+    }))
   );
 }
 
@@ -297,7 +306,7 @@ async function consumeJobsEvents(payload) {
         if (records && records.length > 0) {
           const matchingUserIds = records.map(r => r.toObject().user_id);
           await notifyMatchingUsers(payload.job_id, payload.recruiter_id, payload.title, matchingUserIds);
-          await invalidateMatchingUserCaches(matchingUserIds);
+          await UpdateMatchingUserCaches(matchingUserIds, payload.job_id);
         }
         break;
       }

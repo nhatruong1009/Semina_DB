@@ -158,6 +158,53 @@ const invalidateAll = async (type) => {
     }
 };
 
+/**
+ * pass value to a function and set value will be null if there is no cache
+ * function return null if we we don't want to update if it not exsits
+ */
+const updateCacheWithFn = async ({type, object_id, transformFn, params = {}, keepTTL = false}) => {
+    try {
+        const client = redis.getClient();
+        if (!client) {
+            return null;
+        }
+
+        const cacheKey = getCacheKey(type, object_id, params);
+
+        // Get existing value
+        const cached = await client.get(cacheKey);
+        let currentValue = null;
+
+        if (cached) {
+            try {
+                currentValue = JSON.parse(cached);
+            } catch (e) {
+                currentValue = cached; // fallback if not JSON
+            }
+        }
+
+        // Apply transformation
+        const newValue = await transformFn(currentValue);
+        if (newValue === null) {
+            return null;
+        }
+
+        if (keepTTL) {
+            // Redis >= 6.0 supports KEEPTTL
+            await client.set(cacheKey, JSON.stringify(newValue), 'KEEPTTL');
+        } else {
+            const config = get_key_n_ttl(type);
+            const ttl = config.ttl;
+            await client.setex(cacheKey, ttl, JSON.stringify(newValue));
+        }
+
+        return newValue;
+    } catch (err) {
+        console.error(`Error updating cache with function for ${type}:`, err);
+        return null;
+    }
+};
+
 module.exports = {
     CACHE_TYPE,
     get_key_n_ttl,
@@ -167,4 +214,5 @@ module.exports = {
     invalidateCache,
     invalidateUserCaches,
     invalidateAll,
+    updateCacheWithFn,
 };
