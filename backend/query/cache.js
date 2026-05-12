@@ -65,7 +65,7 @@ const getCacheKey = (type, object_id, params = {}) => {
 // FIX #8: Singleflight-style locking to prevent cache stampede
 const pendingRebuilds = new Map();
 
-const getCache = async (type, object_id, params = {}) => {
+const getCache = async ({type, object_id, params = {}, refesh_timeout = true}) => {
     try {
         const client = redis.getClient();
         if (!client) return null;
@@ -73,7 +73,14 @@ const getCache = async (type, object_id, params = {}) => {
         const cacheKey = getCacheKey(type, object_id, params);
         const cached = await client.get(cacheKey);
         
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+            if (refesh_timeout) {
+                // update cache time (hot access)
+                const config = get_key_n_ttl(type);
+                await client.expire(cacheKey, config.ttl);
+            }
+            return JSON.parse(cached);
+        }
         return null;
     } catch (err) {
         console.error(`Error retrieving cache for ${type}:`, err);

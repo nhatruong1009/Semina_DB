@@ -24,13 +24,21 @@ router.post('/create', [verifyToken, redisMiddleware], async (req, res) => {
 
         const result = await PostQuery.SaveContent(req.userId, content, mediaArray);
         publishPostEvent(POSTS_EVENT_TYPE.CREATE, { author_id: req.userId, post_id: result.id }).catch(console.error);
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        cache.updateCacheWithFn({
+            type: cache.CACHE_TYPE.FEED_PUBLIC,
+            object_id: 'global',
+            transformFn: (value) => (value === null) ? null : [result.id, ...value.filter(id => id !== result.id)].slice(0, 500),
+            keepTTL: false,
+        });
+
         graphQuery.getFollowers(String(req.userId))
           .then(records => Promise.all(
-            records.map(r => cache.invalidateCache(
-              cache.CACHE_TYPE.FEED_NETWORK,
-              String(r.toObject().user_id)
-            ))
+            records.map(r => cache.updateCacheWithFn({
+              type: cache.CACHE_TYPE.FEED_NETWORK,
+              object_id: String(r.toObject().user_id),
+              transformFn: (value) => (value === null) ? null : [result.id, ...value.filter(id => id !== result.id)].slice(0, 100),
+              keepTTL: true, // inactive user will be discard from cache
+            }))
           ))
           .catch(e => console.error('cache invalidate network feed:', e));
         res.status(201).json(result);
@@ -51,7 +59,9 @@ router.get('/feed', [verifyToken], async (req, res) => {
     const skip = (page - 1) * limit;
 
     try {
-        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        const ids = await cache.getCache({
+            type:cache.CACHE_TYPE.FEED_PUBLIC,
+            object_id: 'global'});
         if (ids !== null) {
             is_cache = true;
             const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
@@ -84,7 +94,11 @@ router.get('/feed/network', [verifyToken], async (req, res) => {
     const skip = (page - 1) * limit;
 
     try {
-        const ids = await cache.getCache(cache.CACHE_TYPE.FEED_NETWORK, req.userId);
+        // something not right here
+        // what if they excced the number of cache ?
+        const ids = await cache.getCache({
+            type: cache.CACHE_TYPE.FEED_NETWORK, 
+            object_id: req.userId});
         if (ids !== null) {
             is_cache = true;
             const records = await PostQuery.GetByIds(ids, req.userId, limit, skip);
@@ -196,13 +210,15 @@ router.post('/:id/share', [verifyToken], async (req, res) => {
     try {
         const result = await PostQuery.SharePost(req.params.id, req.userId);
         publishPostEvent(POSTS_EVENT_TYPE.SHARE, { user_id: req.userId, post_id: req.params.id }).catch(console.error);
-        cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global');
+        //cache.invalidateCache(cache.CACHE_TYPE.FEED_PUBLIC, 'global'); // why ?
         graphQuery.getFollowers(String(req.userId))
           .then(records => Promise.all(
-            records.map(r => cache.invalidateCache(
-              cache.CACHE_TYPE.FEED_NETWORK,
-              String(r.toObject().user_id)
-            ))
+            records.map(r => cache.updateCacheWithFn({
+              type: cache.CACHE_TYPE.FEED_NETWORK,
+              object_id: String(r.toObject().user_id),
+              transformFn: (value) => (value === null) ? null : [result.id, ...value.filter(id => id !== result.id)].slice(0, 100),
+              keepTTL: true, // inactive user will be discard from cache
+            }))
           ))
           .catch(e => console.error('cache invalidate network feed:', e));
         res.json(result);

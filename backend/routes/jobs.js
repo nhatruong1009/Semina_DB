@@ -66,7 +66,12 @@ router.get('/', [verifyToken], async (req, res) => {
   try {
     const now = new Date();
     const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`
-    let job_ids = await cache.getCache(cache.CACHE_TYPE.JOB_RECOMMENDATIONS, req.userId, {date:dateStr});
+    let job_ids = await cache.getCache({
+      type: cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 
+      object_id: req.userId, 
+      params: {date:dateStr},
+      refesh_timeout: false, // the recommend for daily, so we don't want refesh it
+    });
     if (job_ids === null) {
       const records = await Neo4j.getSuggestJobsForUser(req.userId, 20);
       job_ids = records.map(r => r.toObject().job_id);
