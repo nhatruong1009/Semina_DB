@@ -10,8 +10,8 @@ const Create = (company_id, recruiter_id, title, location, description, salary_r
   );
 }
 
-const Update = (id, title, location, description, salary_range) => {
-  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
+const Update = async (id, title, location, description, salary_range) => {
+  await cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
   return psql.Query(`UPDATE jobs 
     SET title = $2, location = $3, description = $4, salary_range = $5
     WHERE id = $1
@@ -20,13 +20,13 @@ const Update = (id, title, location, description, salary_range) => {
   );
 }
 
-const Delete = (id) => {
-  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
+const Delete = async (id) => {
+  await cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, id);
   return psql.Query(`DELETE FROM jobs WHERE id = $1`, [id]);
 }
 
-const Apply = (job_id, user_id) => {
-  cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, job_id);
+const Apply = async (job_id, user_id) => {
+  await cache.invalidateCache(cache.CACHE_TYPE.JOBS_INFO, job_id);
   return psql.Query(
     `INSERT INTO job_applications (job_id, user_id, status, applied_at)
        VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)
@@ -36,7 +36,7 @@ const Apply = (job_id, user_id) => {
   );
 }
 
-const GetApplied = (user_id) => {
+const GetApplied = async (user_id) => {
   return psql.Query(
     `SELECT j.id, j.title, j.location, j.description, j.salary_range, j.status, j.created_at,
             c.name AS company_name,
@@ -66,7 +66,7 @@ const Get = (limit = 20, offset = 0) => {
 }
 
 const GetById = async (id) => {
-  const cached = cache.getCache({
+  const cached = await cache.getCache({
     type:cache.CACHE_TYPE.JOBS_INFO, 
     object_id: id
     });
@@ -94,7 +94,7 @@ const GetById = async (id) => {
 const GetByIds = async (ids) => {
   let r = [];
   for (let id of ids){
-    const data = GetById(id);
+    const data = await GetById(id);
     if (data !== null) {
       r.push(data);
     }

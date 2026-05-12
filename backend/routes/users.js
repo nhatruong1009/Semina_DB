@@ -147,22 +147,28 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     // 2. DB-side query: filter, sort, paginate — only `limit` rows returned
     const jobsResult = await psql.Query(`
       SELECT
-        j.id, j.title, j.location, j.description, j.salary_range,
-        j.status, j.created_at, j.recruiter_id,
-        c.name   AS company_name,
-        c.id     AS company_id,
-        p.full_name AS recruiter_name,
-        COUNT(ja.id) OVER (PARTITION BY j.id)::int AS applicants_count,
-        COUNT(*) OVER ()::int                        AS total_count
+          j.id,
+          j.title,
+          j.location,
+          j.description,
+          j.salary_range,
+          j.status,
+          j.created_at,
+          j.recruiter_id,
+          c.name       AS company_name,
+          c.id         AS company_id,
+          p.full_name  AS recruiter_name,
+          COUNT(ja.id)::int AS applicants_count,
+          COUNT(*) OVER ()::int AS total_count
       FROM jobs j
-      LEFT JOIN companies c         ON j.company_id  = c.id
-      LEFT JOIN job_applications ja ON j.id          = ja.job_id
-      LEFT JOIN profiles p          ON j.recruiter_id = p.user_id
+      LEFT JOIN companies c ON j.company_id   = c.id
+      LEFT JOIN profiles p  ON j.recruiter_id = p.user_id
+      LEFT JOIN job_applications ja ON j.id   = ja.job_id
       WHERE j.status = 'OPEN'
         AND j.recruiter_id != $1
+      GROUP BY j.id, c.name, c.id, p.full_name
       ORDER BY j.created_at DESC
-      LIMIT  $2
-      OFFSET $3
+      LIMIT $2 OFFSET $3;
     `, [userId, limit, offset]);
 
     const rows = jobsResult.rows;
