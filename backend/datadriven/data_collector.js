@@ -284,11 +284,14 @@ async function notifyMatchingUsers(jobId, recruiterId, title, users) {
 
 async function UpdateMatchingUserCaches(userIds, job_id) {
   if (!userIds || userIds.length === 0) return;
+  const now = new Date();
+  const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`
   await Promise.allSettled(
     userIds.map(uid => cache.updateCacheWithFn({
       type:cache.CACHE_TYPE.JOB_RECOMMENDATIONS, 
       object_id: uid,
       transformFn: (val) => (val === null) ? null : [ job_id,...val],
+      params: {date:dateStr},
       keepTTL: true,
     }))
   );
