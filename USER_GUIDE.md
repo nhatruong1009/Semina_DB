@@ -117,14 +117,15 @@ npm run dev
 
 Frontend sẽ chạy tại: `http://localhost:5173` (hoặc cổng Vite thông báo)
 
-## 2.6. Tài khoản demo sẵn có
+## 2.6. Khởi tạo schema cơ sở dữ liệu
 
-Sau khi seed dữ liệu, có thể dùng các tài khoản mẫu:
+Sau khi các container Docker đã chạy, cần chạy thủ công các script để tạo schema:
 
-| Email | Mật khẩu | Vai trò |
-|-------|----------|---------|
-| john@example.com | password123 | Người dùng thông thường |
-| jane@example.com | password123 | Người dùng thông thường |
+**PostgreSQL** — chạy file `script/postgres.sql` để tạo toàn bộ bảng, index và trigger.
+
+**Neo4j** — mở Neo4j Browser tại `http://localhost:7474`, đăng nhập và chạy nội dung file `script/neo4j_linkedin.cypher` để tạo dữ liệu seed.
+
+> **Lưu ý:** Sau khi khởi động lần đầu, dữ liệu trống. Tài khoản người dùng cần được tạo qua chức năng **Đăng ký** trên giao diện.
 
 ---
 
@@ -357,18 +358,11 @@ Truy cập: Nhấn **"Admin Companies"** trên thanh điều hướng (chỉ hi�
    - **Company Name**: Tên công ty
    - **Industry**: Ngành nghề
    - **Description**: Mô tả công ty
-3. Nhấn **"Create"** để tạo
-   - Node `(Company)` được tạo tự động trong Neo4j
-   - Người tạo được gán làm admin công ty với quan hệ `[:WORKS_AT]`
+   - **Admin Email**: Email của người quản trị công ty
+3. Nhấn **"Create Company"** để tạo
+4. Công ty mới xuất hiện trong danh sách **"All Companies"** bên dưới
 
-### Quản lý nhân sự công ty
-
-1. Chọn công ty muốn quản lý
-2. Nhấn **"Add User"** để thêm thành viên:
-   - Chọn người dùng từ danh sách
-   - Gán vai trò trong công ty
-3. Nhấn biểu tượng xoá bên cạnh thành viên để loại khỏi công ty
-   - Quan hệ `[:WORKS_AT]` trong Neo4j được cập nhật tự động
+> Tính năng thêm/xoá nhân sự trong công ty đã có ở backend (`/api/companies/:id/add-user`) nhưng chưa được tích hợp vào giao diện trong phiên bản hiện tại.
 
 ---
 
