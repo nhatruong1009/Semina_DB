@@ -152,11 +152,17 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
         c.name   AS company_name,
         c.id     AS company_id,
         p.full_name AS recruiter_name,
-        COUNT(ja.id) OVER (PARTITION BY j.id)::int AS applicants_count,
+        COALESCE(app.applicants_count, 0) AS applicants_count,
         COUNT(*) OVER ()::int                        AS total_count
       FROM jobs j
       LEFT JOIN companies c         ON j.company_id  = c.id
-      LEFT JOIN job_applications ja ON j.id          = ja.job_id
+      LEFT JOIN (
+          SELECT
+              job_id,
+              COUNT(*)::int AS applicants_count
+          FROM job_applications
+          GROUP BY job_id
+      ) app ON j.id = app.job_id
       LEFT JOIN profiles p          ON j.recruiter_id = p.user_id
       WHERE j.status = 'OPEN'
         AND j.recruiter_id != $1
@@ -166,14 +172,17 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     `, [userId, limit, offset]);
 
     const rows = jobsResult.rows;
-    const total = rows.length > 0 ? rows[0].total_count : 0;
+    const uniqueRows = Array.from(
+      new Map(rows.map(r => [r.id, r])).values()
+    );
+    const total = uniqueRows.length > 0 ? uniqueRows[0].total_count : 0;
 
-    if (rows.length === 0) {
+    if (uniqueRows.length === 0) {
       return res.json({ jobs: [], total: 0, page, limit, hasMore: false });
     }
 
     // 3. Fetch required skills for THIS PAGE’s jobs from Neo4j (not all jobs)
-    const jobIds = rows.map(j => j.id);
+    const jobIds = uniqueRows.map(j => j.id);
     let skillsMap = {};
     try {
         const skillsRecords = await Neo4j.getMultipleJobsSkills(jobIds);
@@ -188,7 +197,7 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     }
 
     // 4. Enrich with skill match scores (client-side sort within this page only)
-    const enriched = rows.map(j => ({
+    const enriched = uniqueRows.map(j => ({
       ...j,
       total_count: undefined,           // strip internal pagination field
       matching_skills:       matchMap[String(j.id)] ?? 0,
