@@ -10,10 +10,10 @@ router.get('/suggestions-all/:userId', [verifyToken], async (req, res) => {
   try {
     const { limit, friend, same_school, same_company, popular } = req.query;
     const ratio = {
-      friend:       friend       ? parseFloat(friend)       : 0.4,
-      same_school:  same_school  ? parseFloat(same_school)  : 0.2,
+      friend: friend ? parseFloat(friend) : 0.4,
+      same_school: same_school ? parseFloat(same_school) : 0.2,
       same_company: same_company ? parseFloat(same_company) : 0.2,
-      popular:      popular      ? parseFloat(popular)      : 0.2,
+      popular: popular ? parseFloat(popular) : 0.2,
     };
     const results = await Neo4j.getSuggestionsAll(req.params.userId, {
       limit: limit ? parseInt(limit) : undefined,
@@ -89,7 +89,7 @@ router.get('/best-jobs/:userId', [verifyToken], async (req, res) => {
       recs.map(r => [String(r.job_id), {
         matching_skills: Number(r.matching_skills),
         required_skills: Number(r.required_skills),
-        match_percent:   Number(r.match_percent),
+        match_percent: Number(r.match_percent),
       }])
     );
     const enriched = result.rows
@@ -132,10 +132,10 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     // 1. Get skill matching info from Neo4j first (cheap — indexed graph lookup)
     let recs = [];
     try {
-        const recommendations = await Neo4j.getJobRecommendations(userId);
-        recs = recommendations.map(r => r.toObject());
+      const recommendations = await Neo4j.getJobRecommendations(userId);
+      recs = recommendations.map(r => r.toObject());
     } catch (e) {
-        console.error('[JobRecs] Neo4j skill match error:', e.message);
+      console.error('[JobRecs] Neo4j skill match error:', e.message);
     }
     const matchMap = Object.fromEntries(recs.map(r => [String(r.job_id), Number(r.matching_skills)]));
 
@@ -147,61 +147,70 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
     // 2. DB-side query: filter, sort, paginate — only `limit` rows returned
     const jobsResult = await psql.Query(`
       SELECT
-        j.id, j.title, j.location, j.description, j.salary_range,
-        j.status, j.created_at, j.recruiter_id,
-        c.name   AS company_name,
-        c.id     AS company_id,
+        j.id,
+        j.title,
+        j.location,
+        j.description,
+        j.salary_range,
+        j.status,
+        j.created_at,
+        j.recruiter_id,
+        c.name AS company_name,
+        c.id AS company_id,
         p.full_name AS recruiter_name,
-        COALESCE(app.applicants_count, 0) AS applicants_count,
-        COUNT(*) OVER ()::int                        AS total_count
+        COUNT(ja.id)::int AS applicants_count,
+        COUNT(*) OVER ()::int AS total_count
       FROM jobs j
-      LEFT JOIN companies c         ON j.company_id  = c.id
-      LEFT JOIN (
-          SELECT
-              job_id,
-              COUNT(*)::int AS applicants_count
-          FROM job_applications
-          GROUP BY job_id
-      ) app ON j.id = app.job_id
-      LEFT JOIN profiles p          ON j.recruiter_id = p.user_id
+      LEFT JOIN companies c ON j.company_id = c.id
+      LEFT JOIN job_applications ja ON j.id = ja.job_id
+      LEFT JOIN profiles p ON j.recruiter_id = p.user_id
       WHERE j.status = 'OPEN'
         AND j.recruiter_id != $1
+      GROUP BY
+        j.id,
+        j.title,
+        j.location,
+        j.description,
+        j.salary_range,
+        j.status,
+        j.created_at,
+        j.recruiter_id,
+        c.name,
+        c.id,
+        p.full_name
       ORDER BY j.created_at DESC
-      LIMIT  $2
+      LIMIT $2
       OFFSET $3
     `, [userId, limit, offset]);
 
     const rows = jobsResult.rows;
-    const uniqueRows = Array.from(
-      new Map(rows.map(r => [r.id, r])).values()
-    );
-    const total = uniqueRows.length > 0 ? uniqueRows[0].total_count : 0;
+    const total = rows.length > 0 ? rows[0].total_count : 0;
 
-    if (uniqueRows.length === 0) {
+    if (rows.length === 0) {
       return res.json({ jobs: [], total: 0, page, limit, hasMore: false });
     }
 
     // 3. Fetch required skills for THIS PAGE’s jobs from Neo4j (not all jobs)
-    const jobIds = uniqueRows.map(j => j.id);
+    const jobIds = rows.map(j => j.id);
     let skillsMap = {};
     try {
-        const skillsRecords = await Neo4j.getMultipleJobsSkills(jobIds);
-        skillsMap = Object.fromEntries(
-            skillsRecords.map(r => {
-                const obj = r.toObject();
-                return [obj.job_id, obj.skills];
-            })
-        );
+      const skillsRecords = await Neo4j.getMultipleJobsSkills(jobIds);
+      skillsMap = Object.fromEntries(
+        skillsRecords.map(r => {
+          const obj = r.toObject();
+          return [obj.job_id, obj.skills];
+        })
+      );
     } catch (e) {
-        console.error('[JobRecs] Neo4j skills fetch error:', e.message);
+      console.error('[JobRecs] Neo4j skills fetch error:', e.message);
     }
 
     // 4. Enrich with skill match scores (client-side sort within this page only)
-    const enriched = uniqueRows.map(j => ({
+    const enriched = rows.map(j => ({
       ...j,
       total_count: undefined,           // strip internal pagination field
-      matching_skills:       matchMap[String(j.id)] ?? 0,
-      required_skills_list:  skillsMap[String(j.id)] ?? []
+      matching_skills: matchMap[String(j.id)] ?? 0,
+      required_skills_list: skillsMap[String(j.id)] ?? []
     })).sort((a, b) => {
       if (b.matching_skills !== a.matching_skills) return b.matching_skills - a.matching_skills;
       return new Date(b.created_at) - new Date(a.created_at);
@@ -215,7 +224,7 @@ router.get('/job-recommendations/:userId', [verifyToken], async (req, res) => {
   }
 });
 
-router.get('/same-school/:userId',  [verifyToken], async (req, res) => {
+router.get('/same-school/:userId', [verifyToken], async (req, res) => {
   try {
     const { limit, exclude } = req.query;
     const records = await Neo4j.getSameSchool(req.params.userId, {
@@ -241,7 +250,7 @@ router.get('/same-company/:userId', [verifyToken], async (req, res) => {
   }
 });
 
-router.post('/connect',  [verifyToken], async (req, res) => {
+router.post('/connect', [verifyToken], async (req, res) => {
   try {
     const { userId1, userId2 } = req.body;
     publishUserEvent(USERS_EVENT_TYPE.CONNECT, { user_id: userId1, target_user_id: userId2 }).catch(console.error);
